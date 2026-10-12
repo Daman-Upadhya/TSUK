@@ -1,8 +1,14 @@
-# DLR Portfolio: change log and working notes
+# TSUK Portfolio: change log and working notes
 
-This file records every change made to the DLR Portfolio dashboards in the working session of
-5 October 2026, why each was made, and what is still open. Read it before changing the
-calculation logic, the dashboard template or the PPC review export.
+This file records the changes made to these dashboards, why each was made, and what is still
+open. Read it before changing the calculation logic, the dashboard template or the PPC review
+export.
+
+The client changed on 12 Oct 2026. Sections 1 to 3.7 (5 and 6 Oct) were written when this was
+the Digital Realty (DLR) portfolio, with projects P1, P2, PAR14 and MRS05; they are kept as the
+record of why the shared logic works the way it does. From 12 Oct the repository serves
+**Tata Steel UK (TSUK)**, with the project CIVIL: section 3.8 adds the Compliance page and its
+score, section 3.9 the TSUK branding.
 
 The [README](README.md) explains how the repository is built and deployed. This file explains
 what the report now does and the decisions behind its numbers.
@@ -20,7 +26,7 @@ what the report now does and the decisions behind its numbers.
 | Reasons for variance | English model reasons only, about 40 activities matched | Plus the project's 11 French reasons, 695 activities matched |
 | Detail review | None | Every mark opens the activities or constraints behind it, with CSV download |
 | Export | None | "Export PPC review": a printable, sendable report (PDF via print, HTML, CSV) |
-| Branding | "VL" square | VisiLean and Digital Realty logos (PNG) |
+| Branding | "VL" square | VisiLean and client logos (PNG; Tata Steel UK since 12 Oct) |
 
 ---
 
@@ -128,7 +134,7 @@ week's rolling value equals the "PPC 6-week running" tile.
 
 ### 3.1 Layout, top to bottom
 
-1. **Header:** VisiLean and Digital Realty logos, project name with a status pill, and
+1. **Header:** VisiLean and Tata Steel UK logos, project name with a status pill, and
    "Data as of".
 2. **Top panel**, a blue-to-navy gradient band styled like the VisiLean report library:
    - an eyebrow line, the project name and a one-line description;
@@ -339,7 +345,7 @@ not in it, so they count as missed. A fresh export, or the live feed, corrects i
 - **Live API.** `build/project_defaults.json` now holds the real endpoint for every project,
   `https://go.visilean.com/pb/PowerBiAPI/resource/powerBi/getData/visilean?accessToken=…&projectId=…`,
   and three calls per refresh: `type=task&IncludeStatusChange=true&IncludeReschedule=true&IncludeConstraintNotes=true&IncludeOther=true`,
-  `type=committedTask` and `type=constraintLog`. Client defaults to Digital Reality.
+  `type=committedTask` and `type=constraintLog`. Client defaults to Tata Steel UK (Digital Reality until 12 Oct).
 - **Token.** Repository secret `VL_TOKEN_<CODE>`. A secret name cannot hold `.` or `-`, so
   those become `_`.
 - **One workflow per project.** `python -m build new-project --code --name --id` writes the
@@ -440,6 +446,22 @@ feeds, if one of them fails, the whole refresh falls back to the last good copy.
   assumptions. Each is a setting in the `compliance` block of `dashboard_data.json`, so a
   mismatch is a config fix, not a code change.
 
+### 3.9 Tata Steel UK branding, 12 Oct
+
+- The client logo in the header of every page is now Tata Steel UK
+  (`Template/assets/logo-tata-steel-uk.png`). It's a trimmed copy of the supplied
+  `TATA Steel UK.png`, with the white margin cut to 6px, shown 22px high. The Digital Realty logo
+  was removed. The template slot is now `{{LOGO_CLIENT}}` (was `{{LOGO_DLR}}`).
+- The default client in `build/project_defaults.json` is now "Tata Steel UK". It shows in the
+  header eyebrow, the top panel, the portfolio cards and the PPC review export.
+- The header label (`eyebrow` in `dashboard_data.json`) is now "TSUK" (was "DLR", Digital
+  Realty's abbreviation), on every page and in the PPC review export. The docs are renamed
+  "TSUK Portfolio". Internal identifiers keep their `dlr` names: the Python module names and
+  the browser storage keys for the theme and the portfolio sort. Renaming the storage keys
+  would reset every viewer's saved choice.
+- The Power BI model name ("Digital Reality - KPIs (Committed)") is left as it is in the docs
+  and code comments: it names the model the logic was ported from.
+
 ## 4. Export PPC review
 
 The button builds a standalone report for the current range and filters, and opens it in a
@@ -525,3 +547,6 @@ unreliable on this machine while an Edge update was pending.
 | Manifest hashes never recorded | Every build logs "drift" | Run `python -m build build --write-manifest` once the report is approved |
 | 171 of 293 missed commitments have no reason recorded | The reasons-by-trade visual covers only part of the misses | A process question for the site teams, not a code issue |
 | Inter font not embedded | Pages use the system font stack | Add the font file and embed it, as the design system expects |
+| CIVIL has no live data yet (no `VL_TOKEN_CIVIL`) | The Compliance page has only been checked on a synthetic export with the real workforce and daily quantity samples | Set the secret, run the refresh, and check the first live numbers |
+| Compliance field names not confirmed on live data | `totalQuantity`, the history wording for start / reschedule / complete, and the `Note added:` marker are assumptions | Adjust `compliance` in `dashboard_data.json` if a KPI reads wrong; no code change |
+| `workForce` / `dailyquantity` API types not tried live | If VisiLean rejects either type, the refresh goes red | Check the first refresh log; set the feed's type to null to switch it off meanwhile |

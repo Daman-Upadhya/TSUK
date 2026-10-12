@@ -1001,7 +1001,7 @@
     if (!FX.commitments) { exportBtn.disabled = true; exportBtn.title = 'No commitment feed is configured for this project'; }
     exportBtn.addEventListener('click', function () {
       var SP = FS.performance;
-      openReview(A.review(FX, SP, data), { project: P, meta: meta, S: SP, data: data, eyebrow: data.eyebrow || 'DLR',
+      openReview(A.review(FX, SP, data), { project: P, meta: meta, S: SP, data: data, eyebrow: data.eyebrow || 'TSUK',
                                           css: (document.querySelector('head style') || {}).textContent || '' });
     });
     /* Reset clears the active page's filters only */

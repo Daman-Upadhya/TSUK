@@ -220,7 +220,7 @@ class Assets:
         self.landing = read_text(os.path.join(TEMPLATE_DIR, "Landing.html"))
         # header logos: PNG files embedded as data URIs, so every page stays one self-contained file
         self.logos = {key: png_data_uri(os.path.join(TEMPLATE_DIR, "assets", name))
-                      for key, name in (("LOGO_VISILEAN", "logo-visilean.png"), ("LOGO_DLR", "logo-digital-realty.png"))}
+                      for key, name in (("LOGO_VISILEAN", "logo-visilean.png"), ("LOGO_CLIENT", "logo-tata-steel-uk.png"))}
         self.data = read_json(os.path.join(TEMPLATE_DIR, "dashboard_data.json"))
         self.logic_hash = M.sha256_file(os.path.join(TEMPLATE_DIR, "calculation.py"))
         self.calc = load_calculation()
@@ -306,7 +306,7 @@ def build_project(cfg: dict, assets: Assets, mode: str, today: date, now: dateti
     page = I.inline_assets(assets.dashboard, assets.tokens_css, assets.charts_js, assets.app_js, assets.aggregate_js)
     page = I.fill(page, {
         "TITLE": cfg.get("title") or key,
-        "EYEBROW": data.get("eyebrow", "DLR"),
+        "EYEBROW": data.get("eyebrow", "TSUK"),
         "CLIENT": cfg.get("client") or "",
         "GENERATED_AT": fmt_when(now),
         "BUILD_ID": build_id,
@@ -394,7 +394,7 @@ def build_landing(summaries: list[dict], assets: Assets, now: datetime, today: d
         "projects": projects,
     }
     page = I.inline_assets(assets.landing, assets.tokens_css, assets.charts_js, assets.app_js)
-    page = I.fill(page, {"TITLE": title, "EYEBROW": assets.data.get("eyebrow", "DLR"),
+    page = I.fill(page, {"TITLE": title, "EYEBROW": assets.data.get("eyebrow", "TSUK"),
                          "GENERATED_AT": fmt_when(now), "BUILD_ID": build_id, "LOGIC_HASH": M.short(assets.logic_hash),
                          **assets.logos})
     I.assert_filled(page)

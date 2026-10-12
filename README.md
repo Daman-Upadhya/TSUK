@@ -1,12 +1,13 @@
-# DLR Portfolio
+# TSUK Portfolio
 
-Static project dashboards built from VisiLean data. Each project has its own GitHub Actions
-workflow that refreshes it twice a day and publishes it to the `gh-pages` branch, which GitHub
-Pages serves:
+Static project dashboards for **Tata Steel UK (TSUK)**, built from VisiLean data. The first
+project is **CIVIL** ("TSUK - CIVIL Works"). Each project has its own GitHub Actions workflow
+that refreshes it twice a day and publishes it to the `gh-pages` branch, which GitHub Pages
+serves:
 
 ```
-https://<owner>.github.io/DLR_Portfolio/        landing page, one card per project
-https://<owner>.github.io/DLR_Portfolio/<CODE>/ one page per project code
+https://<owner>.github.io/TSUK/        landing page, one card per project
+https://<owner>.github.io/TSUK/<CODE>/ one page per project code
 ```
 
 The repo follows the structure in [lead-repo-er-diagram.md](lead-repo-er-diagram.md).
@@ -14,11 +15,15 @@ The repo follows the structure in [lead-repo-er-diagram.md](lead-repo-er-diagram
 For what the report does now, the decisions behind its numbers and the open issues, see
 [CHANGES.md](CHANGES.md).
 
+The repository started as the Digital Realty (DLR) portfolio and was moved to Tata Steel UK on
+12 Oct 2026: the client name, the header logo and the page label ("TSUK") changed; the
+calculation logic is shared and unchanged by the move.
+
 | Diagram entity | Here |
 |---|---|
-| Template Folder | `Template/` — `calculation.py`, `Dashboard.html`, `Landing.html`, `dashboard_data.json`, `tokens.css`, `scripts/` (`charts.js`, `aggregate.js`, `app.js`), `assets/` (the VisiLean and Digital Realty header logos, PNG, embedded into each page as data URIs) |
+| Template Folder | `Template/` — `calculation.py`, `Dashboard.html`, `Landing.html`, `dashboard_data.json`, `tokens.css`, `scripts/` (`charts.js`, `aggregate.js`, `app.js`), `assets/` (the VisiLean and Tata Steel UK header logos, PNG, embedded into each page as data URIs) |
 | Calculational Logic | `Template/calculation.py`, hashed into every page footer and every manifest |
-| P1 Folder, P2 Folder | One folder per project code (`PAR14/`, `MRS05/`) — `project.json`, optional `manifest.json` and `overrides/` |
+| P1 Folder, P2 Folder | One folder per project code (`CIVIL/`) — `project.json`, optional `manifest.json` and `overrides/` |
 | Dependency Manifest | `P<key>/manifest.json` — which logic, template and data the page was built against, with hashes |
 | Build Process | `build/` — `python -m build` |
 | Generated Page Artifact | `dist/<key>/index.html` (+ `build.json`), `dist/index.html` — gitignored on `main`, published to the `gh-pages` branch |
@@ -40,9 +45,10 @@ python -m build serve                                      # http://localhost:80
 
 `--source`:
 - `live` — calls VisiLean with the project's token
-- `sample` — reads exports saved as `sample/<CODE>.tasks.json.gz`, `<CODE>.committed.json` and
-  `<CODE>.constraints.json`, for working offline. The repository ships none; a project without
-  them is built as "unavailable".
+- `sample` — reads exports saved as `sample/<CODE>.tasks.json.gz` (required), and
+  `<CODE>.committed.json`, `<CODE>.constraints.json`, `<CODE>.workforce.json` and
+  `<CODE>.dailyquantity.json` (each optional), for working offline. The repository ships none;
+  a project without a task export is built as "unavailable".
 - `auto` (default) — live when a token is configured, otherwise sample
 - `--today YYYY-MM-DD` pins the run date. It applies to live builds only; see "Reporting date".
 
@@ -83,19 +89,30 @@ The logic is a port of the **Digital Reality - KPIs (Committed)** Power BI model
 docstring has the table. The model itself is no longer in the repository (it is in the git
 history before its removal on 6 Oct 2026).
 
-- **Pages**, as tabs under the filter bar: **Performance** (everything below except
-  constraints) and **Constraints** (all constraint KPIs, status, category, target-week trend and
-  the overdue list). The Constraints tab shows how many constraints are overdue in the current
-  filter context. The slicers apply to both pages, and the open page is kept in the URL hash
-  (`#page=constraints`) with the filters.
-- **Compliance page** (third tab): look-ahead activities (planned to start or finish in the
-  next 6 weeks from next Monday) with an owner, a planned quantity and a trade; delayed
-  activities with a detailed note or a default reason; constraints with an owner; constraints due by
-  today that are closed; and last
-  week's commitments with a start / reschedule / complete in their history; look-ahead activities
-  with a planned workforce (`type=workForce`) and last week's completed commitments with an actual
-  quantity (`type=dailyquantity`). An overall VisiLean compliance score (weighted, out of 100,
-  rated Excellent to Critical) heads the page. See CHANGES.md 3.8.
+- **Three pages**, as tabs under the filter bar, each with its own filters: **Performance**
+  (everything below except constraints), **Constraints** (all constraint KPIs, status,
+  category, target-week trend and the overdue list; the tab shows how many are overdue) and
+  **Compliance**. The open page is kept in the URL hash (`#page=compliance`) with its filters.
+- **Compliance page**: an **overall VisiLean compliance score** out of 100 (a gauge with the
+  rating bands Excellent / Good / Needs improvement / Poor / Critical, and a weight × score
+  breakdown), then nine KPIs:
+
+  | KPI | Out of | Weight |
+  |---|---|---|
+  | Activities with owners | Look-ahead: activities planned to start or finish in the next 6 weeks from next Monday | 15 |
+  | Activities with planned quantities | Look-ahead | 15 |
+  | Activities with trade assigned | Look-ahead | 10 |
+  | Activities with workforce assigned | Look-ahead (`type=workForce`) | 10 |
+  | Delayed activities with delay reasons (detailed note or default reason) | Delayed activities | 15 |
+  | Constraints with owners | All constraints | 10 |
+  | Constraint closure performance | Constraints with a target date on or before today | 10 |
+  | Daily progress update compliance (start / reschedule / complete in the history) | Activities committed for last week | 10 |
+  | Completed tasks with actual quantities (`type=dailyquantity`) | Last week's commitments that are complete | 5 |
+
+  It has trade / location / organisation filters and fixed windows (no date range). Every
+  tile, bar and row opens the activities or constraints behind it. A KPI with nothing to
+  measure is left out of the score and the other weights are re-scaled. Weights, ratings and
+  the field names it reads are `compliance` in `dashboard_data.json`. See CHANGES.md 3.8.
 - **Export PPC review**: a button in the control bar opens a standalone report for the
   selected range and filters, ready to send: committed / kept / missed totals, PPC for the
   range, the 6-week rolling PPC and last week's PPC; an overall chart of kept and missed per
@@ -155,9 +172,14 @@ The task feed has one row per history event; tasks are de-duplicated by guid (th
 
 **Feeds.** Committed PPC needs the commitment feed (`type=committedTask`, the model's
 `All_Committed_Task`) and the constraint KPIs need the constraint feed (`type=constraintLog`,
-`AllConstraintsLog`). Both are on for every project in `build/project_defaults.json`. A
-project that sets a feed's type to null shows "no data" for those tiles, the 6-week running
-PPC falls back to planned PPC, and the score leaves out constraints overdue.
+`AllConstraintsLog`). Two compliance KPIs need the daily feeds: `type=workForce`
+(`[{activityGuid, workforceData: [{date, plannedWorkers, actualWorkers}]}]`) and
+`type=dailyquantity` (`[{activityGuid, dailyQuantityData: [{date, dailyPlannedQuantity,
+dailyActualQuantity}]}]`). All four are on for every project in `build/project_defaults.json`.
+A project that sets a feed's type to null shows "no data" for those tiles (for the commitment
+feed the 6-week running PPC falls back to planned PPC, and the total score leaves out
+constraints overdue). Like the commitment and constraint feeds, a daily feed that fails makes
+the whole refresh fall back to the last good copy.
 
 The commitment feed is nested (`{"data": [{"isAutoCommit", "commitDetails": [{"committedTimestamp",
 "committedStartDate", "committedEndDate", "activitiesGuid": [...]}]}]}`); `calculation.py` expands
@@ -193,7 +215,7 @@ You need three things: the project code, the project name and the VisiLean proje
 
    This writes `AMS11/project.json` and `.github/workflows/refresh-AMS11.yml`. The code is
    the folder, the page URL (`/AMS11/`) and the secret suffix. Add `--client "…"` if the
-   client is not Digital Reality. Each new workflow runs 4 minutes after the previous
+   client is not Tata Steel UK. Each new workflow runs 4 minutes after the previous
    project's (09:51 / 15:51 IST for the first, 09:55 / 15:55 for the second, and so on).
 2. Create the repository secret `VL_TOKEN_<CODE>` (Settings → Secrets and variables →
    Actions) holding the project's VisiLean access token. Secret names allow only letters,
@@ -251,10 +273,13 @@ manual run turns them back on.
 
 ```
 Template/               universal logic, templates, defaults
-<CODE>/                 one folder per project (PAR14, MRS05)
+<CODE>/                 one folder per project (CIVIL)
 build/                  the build process (fetch, inject, manifest, validate, CLI)
 dist/                   output (gitignored)
 .cache/                 last good feed per project (gitignored; cached in CI)
 .github/workflows/      refresh-<CODE>.yml per project, portfolio.yml
 .github/scripts/        pages.sh (fetch, scan and publish the gh-pages site)
 ```
+
+`sample/` (offline exports) and `preview/` (locally built pages for review) are local working
+folders; keep real project exports out of commits.

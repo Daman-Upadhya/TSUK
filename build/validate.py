@@ -215,7 +215,7 @@ def main(scope: str = "all", only: list[str] | None = None) -> int:
         r.warn("no project folders found")
     for f in ("calculation.py", "Dashboard.html", "Landing.html", "dashboard_data.json", "tokens.css",
               "scripts/charts.js", "scripts/aggregate.js", "scripts/app.js",
-              "assets/logo-visilean.png", "assets/logo-digital-realty.png"):
+              "assets/logo-visilean.png", "assets/logo-tata-steel-uk.png"):
         if not os.path.exists(os.path.join(TEMPLATE_DIR, f)):
             r.fail("Template/%s missing" % f)
     check_site(configs, r, scope, only)

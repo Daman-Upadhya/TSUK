@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Universal calculational logic for every DLR project page.
+"""Universal calculational logic for every TSUK project page.
 
 This is the file the ER diagram calls "Calculational Logic". It is pure: no network, no
 file I/O, no printing. Every number a page shows is computed here; the HTML only renders.

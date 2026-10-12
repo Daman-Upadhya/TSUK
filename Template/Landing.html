@@ -28,14 +28,14 @@ section { min-width: 0; }
 .appbar { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--card) 88%, transparent); -webkit-backdrop-filter: saturate(1.6) blur(12px); backdrop-filter: saturate(1.6) blur(12px); border-bottom: 1px solid var(--line-soft); }
 .appbar-inner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px var(--gutter); }
 .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
-/* VisiLean and Digital Realty logos, embedded PNGs; a white plate keeps them legible in dark mode */
+/* VisiLean and Tata Steel UK logos, embedded PNGs; a white plate keeps them legible in dark mode */
 .logos { display: flex; align-items: center; gap: 12px; flex: none; border-radius: 10px; }
 .logo { display: block; width: auto; height: 30px; }
-.logo-dlr { height: 28px; }
+.logo-client { height: 22px; }
 .logo-sep { width: 1px; height: 26px; background: var(--line); }
 :root[data-theme="dark"] .logos { background: var(--logo-plate); padding: 5px 10px; }
 :root[data-theme="dark"] .logo-sep { background: color-mix(in srgb, var(--logo-plate) 80%, #000 20%); }
-@media (max-width: 760px) { .logo { height: 22px; } .logo-dlr { height: 20px; } .logos { gap: 8px; } .logo-sep { height: 18px; } }
+@media (max-width: 760px) { .logo { height: 22px; } .logo-client { height: 16px; } .logos { gap: 8px; } .logo-sep { height: 18px; } }
 .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
 .title-wrap { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .title { font-size: 17px; letter-spacing: -.01em; font-weight: 600; }
@@ -151,7 +151,7 @@ footer code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
       <span class="logos">
         <img class="logo logo-vl" src="{{LOGO_VISILEAN}}" alt="VisiLean" height="30">
         <span class="logo-sep" aria-hidden="true"></span>
-        <img class="logo logo-dlr" src="{{LOGO_DLR}}" alt="Digital Realty" height="30">
+        <img class="logo logo-client" src="{{LOGO_CLIENT}}" alt="Tata Steel UK" height="30">
       </span>
       <span>
         <div class="eyebrow">{{EYEBROW}} · Portfolio</div>

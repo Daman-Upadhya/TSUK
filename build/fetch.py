@@ -36,7 +36,7 @@ import urllib.request
 
 from . import CACHE_DIR, ROOT, TOKENS_FILE
 
-USER_AGENT = "DLR-Portfolio-build"
+USER_AGENT = "TSUK-Portfolio-build"
 
 
 class TokenRejected(Exception):

@@ -1,7 +1,7 @@
 {
   "_comment": "Template data every project page inherits. A project's project.json 'display' block and its optional overrides/data.json are deep-merged on top. Ported from the 'Digital Reality - KPIs (Committed)' Power BI model. Changing this file changes every project on the next build; its hash is recorded in each P<key>/manifest.json.",
 
-  "eyebrow": "DLR",
+  "eyebrow": "TSUK",
   "locale": "en-IN",
   "staleAfterHours": 20,
 
