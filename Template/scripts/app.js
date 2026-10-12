@@ -215,6 +215,8 @@
     if (bits.length) td.title = bits.join(' · ');
     return td;
   }
+  function YESNO(v) { return v === null || v === undefined ? null : (v ? 'Yes' : 'No'); }
+  var NOTE_WORD = { detailed: 'Detailed note', 'default': 'Default reason only', none: 'No reason' };
   function actSub(r) { return [r.id ? '#' + r.id : null, r.location].filter(Boolean).join(' · '); }
   var COLS = {
     commits: [
@@ -243,6 +245,24 @@
       { h: 'Status', cell: function (r) { return statusCell(r.status); } },
       { h: 'Reasons', cell: reasonsCell }
     ],
+    compliance: [
+      { h: 'Activity', cell: function (r) { return nameCell(r.name, actSub(r)); } },
+      { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
+      { h: 'Owner', cell: function (r) { return textCell(r.owner); } },
+      { h: 'Quantity', num: true, cell: function (r) { return el('td', 'num', r.quantity === null || r.quantity === undefined ? '—' : C.fmtNum(r.quantity)); } },
+      { h: 'Planned start', num: true, cell: function (r) { return dateCell(r.plannedStart); } },
+      { h: 'Planned end', num: true, cell: function (r) { return dateCell(r.plannedEnd); } },
+      { h: 'Delay', num: true, cell: function (r) {
+          var td = el('td', 'num');
+          if (r.delayDays === null || r.delayDays === undefined) td.textContent = '—';
+          else td.appendChild(el('span', 'age-chip ' + ageCls(r.delayDays), C.fmtNum(r.delayDays) + ' d'));
+          return td; } },
+      { h: 'Delay reason', cell: function (r) { return textCell(NOTE_WORD[r.noteKind || 'none']); } },
+      { h: 'Updates', cell: function (r) { return textCell(r.updates.join(', ')); } },
+      { h: 'Workforce', cell: function (r) { return textCell(YESNO(r.workforce)); } },
+      { h: 'Actual qty', cell: function (r) { return textCell(YESNO(r.actualQuantity)); } },
+      { h: 'Status', cell: function (r) { return statusCell(r.status); } }
+    ],
     constraints: [
       { h: 'Constraint', cell: function (r) { return nameCell(r.title, r.activities.length ? r.activities.join(' · ') : 'not linked to an activity'); } },
       { h: 'Category', cell: function (r) { return textCell(r.category); } },
@@ -266,7 +286,9 @@
                ['Committed week', 'committedWeek'], ['Committed end', 'committedEnd'], ['Result', function (r) { return r.kept === null ? '' : (r.kept ? 'Kept' : 'Missed'); }],
                ['Planned duration', 'duration'], ['Delay days', 'delayDays'], ['Delay type', 'delayKind'],
                ['Reason categories', function (r) { return r.categories.join('; '); }], ['Reasons', function (r) { return r.reasons.join('; '); }],
-               ['Events', function (r) { return r.events.join('; '); }]],
+               ['Events', function (r) { return r.events.join('; '); }], ['Owner', 'owner'], ['Planned quantity', 'quantity'],
+               ['Delay reason', function (r) { return NOTE_WORD[r.noteKind || 'none']; }], ['Progress updates', function (r) { return r.updates.join('; '); }],
+               ['Planned workforce', function (r) { return YESNO(r.workforce); }], ['Actual quantity recorded', function (r) { return YESNO(r.actualQuantity); }]],
     constraint: [['Constraint ID', 'id'], ['Constraint', 'title'], ['Category', 'category'], ['Priority', 'priority'], ['Owner', 'owner'], ['Owner organisation', 'ownerOrganisation'], ['Trade', 'trade'],
                  ['Location', 'location'], ['Status', 'status'], ['Created', 'created'], ['Target', 'target'], ['Committed', 'commitment'], ['Completed', 'completion'],
                  ['Overdue days', 'overdueDays'], ['Lag days', 'lagDays'], ['Linked activities', function (r) { return r.activities.join('; '); }]]
@@ -304,7 +326,7 @@
     var rows = A.records(CUR.V, spec, CUR.data);
     var kind = spec.type === 'constraints' ? 'constraint' : 'activity';
     DR = { rows: rows, kind: kind, title: title, opener: opener || document.activeElement,
-           cols: COLS[spec.type === 'constraints' ? 'constraints' : (spec.type === 'tasks' ? 'tasks' : 'commits')], csv: CSV[kind] };
+           cols: COLS[spec.type === 'constraints' || spec.type === 'compliance' || spec.type === 'tasks' ? spec.type : 'commits'], csv: CSV[kind] };
     setText('drawerEyebrow', kind === 'constraint' ? 'Constraints' : 'Activities');
     setText('drawerTitle', title);
     setText('drawerSub', sub || '');
@@ -886,7 +908,7 @@
 
   /* slicer keys: Performance uses org / trade / loc (from the activity); Constraints uses cat / ctrade / cown (from the constraint) */
   var FILTER_KEYS = ['org', 'trade', 'loc', 'cat', 'ctrade', 'cown'];
-  var PAGE_KEYS = { performance: ['org', 'trade', 'loc'], constraints: ['cat', 'ctrade', 'cown'] };
+  var PAGE_KEYS = { performance: ['org', 'trade', 'loc'], constraints: ['cat', 'ctrade', 'cown'], compliance: ['org', 'trade', 'loc'] };
 
   /* ---------- filter state in the URL hash ---------- */
   function parseHash(opts) {
@@ -897,7 +919,7 @@
       var i = kv.indexOf('='); if (i < 0) return;
       var k = kv.slice(0, i), v = decodeURIComponent(kv.slice(i + 1));
       if ((k === 'from' || k === 'to') && /^\d{4}-\d{2}-\d{2}$/.test(v)) out[k] = v;
-      if (k === 'page' && (v === 'performance' || v === 'constraints')) out.page = v;
+      if (k === 'page' && PAGE_KEYS[v]) out.page = v;
       if (FILTER_KEYS.indexOf(k) >= 0) {
         var m = {}; v.split('|').forEach(function (x) { if (opts[k].indexOf(x) >= 0) m[x] = 1; });
         if (Object.keys(m).length) out[k] = m;
@@ -947,7 +969,8 @@
     /* each page keeps its own slicers: the controls show the active page's, and changing them never touches the other page.
        A link carries the filters of the page it opens on. */
     var fromHash = parseHash(opts), startPage = fromHash.page || 'performance';
-    var FS = { performance: Object.assign({}, defaults, { page: 'performance' }), constraints: Object.assign({}, defaults, { page: 'constraints' }) };
+    var FS = { performance: Object.assign({}, defaults, { page: 'performance' }), constraints: Object.assign({}, defaults, { page: 'constraints' }),
+               compliance: Object.assign({}, defaults, { page: 'compliance' }) };
     Object.assign(FS[startPage], fromHash, { page: startPage });
     var S = FS[startPage];
     /* reason-category colour slots are fixed once per page from the unfiltered view, so a filter never repaints a category */
@@ -988,12 +1011,12 @@
     function syncControls() { FILTER_KEYS.forEach(function (k) { pickers[k].set(S[k]); }); dayRange.set(S.from, S.to); }
     document.getElementById('fReset').addEventListener('click', resetFilters);
 
-    /* ---- page tabs: Performance | Constraints, each with its own slicers ---- */
-    var tabs = [document.getElementById('tabPerformance'), document.getElementById('tabConstraints')];
+    /* ---- page tabs: Performance | Constraints | Compliance, each with its own slicers ---- */
+    var tabs = [document.getElementById('tabPerformance'), document.getElementById('tabConstraints'), document.getElementById('tabCompliance')];
     function showPage(page, focus) {
       S = FS[page];
       /* each page shows its own slicers */
-      document.querySelectorAll('#filters [data-for]').forEach(function (n) { n.hidden = n.getAttribute('data-for') !== page; });
+      document.querySelectorAll('#filters [data-for]').forEach(function (n) { n.hidden = n.getAttribute('data-for').split(' ').indexOf(page) < 0; });
       tabs.forEach(function (t) {
         var on = t.getAttribute('data-page') === page;
         t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1;
@@ -1001,7 +1024,7 @@
         if (on && focus) t.focus();
       });
       writeHash(S, defaults);
-      var nav = document.getElementById('controlBar'), panel = document.getElementById(page === 'constraints' ? 'pageConstraints' : 'pagePerformance');
+      var nav = document.getElementById('controlBar'), panel = document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1));
       if (nav && panel) {
         var stuck = nav.getBoundingClientRect().bottom;
         var top = panel.getBoundingClientRect().top;
@@ -1026,7 +1049,8 @@
     showPage(S.page || 'performance');
 
     function activeFilters() {
-      return (S.from !== defaults.from || S.to !== defaults.to ? 1 : 0) + PAGE_KEYS[S.page].filter(function (k) { return S[k]; }).length;
+      /* the Compliance page has fixed windows: its date range is not shown and never counts */
+      return (S.page !== 'compliance' && (S.from !== defaults.from || S.to !== defaults.to) ? 1 : 0) + PAGE_KEYS[S.page].filter(function (k) { return S[k]; }).length;
     }
     function apply() {
       var nAct = activeFilters(), reset = document.getElementById('fReset');
@@ -1038,7 +1062,7 @@
       dayRange.set(S.from, S.to);
       writeHash(S, defaults);
       /* the Constraints tab badge and the panel's open-constraint count always follow the Constraints page's filters */
-      var V = A.run(FX, S, data), VC = S.page === 'constraints' ? V : A.run(FX, FS.constraints, data);
+      var V = S.page === 'compliance' ? A.compliance(FX, S, data) : A.run(FX, S, data), VC = S.page === 'constraints' ? V : A.run(FX, FS.constraints, data);
       renderView(V, S, { opts: opts, catCls: catCls, catFold: catFold, noneLabel: noneLabel, data: data, M: M, consCN: VC.constraints });
     }
     apply();
@@ -1061,8 +1085,11 @@
     var dimList = S.page === 'constraints' ? [dimText('cat', 'category'), dimText('ctrade', 'trade'), dimText('cown', 'owner')]
                                            : [dimText('org', 'organisation'), dimText('trade', 'trade'), dimText('loc', 'location')];
     var dims = dimList.filter(function (t) { return t.indexOf('all ') !== 0; }).map(function (t) { return ' · ' + t; }).join('');
+    var CPV = V.compliance;
     setText('fSummary', (S.page === 'constraints'
       ? 'Constraints filters · ' + (CN ? plural(CN.total, 'constraint') + ' with a target in ' + rangeText : 'no constraint feed')
+      : S.page === 'compliance'
+      ? 'Compliance filters · ' + (CPV ? C.fmtNum(CPV.lookahead.activities) + ' activities in the look-ahead, ' + fmtRange(CPV.lookahead.from, CPV.lookahead.to) : 'not available for this build')
       : 'Performance filters · ' + C.fmtNum(T.tasks) + ' of ' + C.fmtNum(T.allTasks) + ' activities planned to finish in ' + rangeText
         + (hasCommitted ? ' · ' + C.fmtNum(V.commitmentRows) + ' commitments' : '')) + dims);
 
@@ -1507,6 +1534,153 @@
       });
     }
 
+    renderCompliance(V);
+  }
+
+  /* ---------- overall VisiLean compliance score: the weighted KPIs, a rating, the scale and the breakdown ---------- */
+  function renderScore(SC, rule) {
+    var bands = (CUR.data.compliance && CUR.data.compliance.score && CUR.data.compliance.score.ratings) || [];
+    C.gauge(document.getElementById('cpGauge'), SC.value, {
+      max: 100, tone: SC.tone, text: SC.value === null ? null : SC.value.toFixed(2), sub: 'out of 100',
+      bands: bands.map(function (b, i) { return { from: b[0], to: i ? bands[i - 1][0] : 100, tone: b[2], label: b[1] }; }),
+      aria: 'Overall compliance score: ' + (SC.value === null ? 'not measured' : SC.value.toFixed(2) + ' out of 100, ' + SC.rating)
+    });
+    var rh = document.getElementById('cpScoreRating'); rh.innerHTML = '';
+    rh.appendChild(pill(SC.rating || 'Not measured', SC.tone));
+    setText('cpScoreSub', SC.value === null ? 'No KPI could be measured yet.' : 'Weighted average of the ' + (SC.parts.length - SC.missing.length) + ' KPIs below'
+      + (SC.missing.length ? '. Left out, nothing to measure yet: ' + SC.missing.join(', ') + '; the other weights are scaled up to 100' : ''));
+    var sc = document.getElementById('cpScale'); sc.innerHTML = '';
+    bands.forEach(function (b, i) {
+      var li = el('li', SC.rating === b[1] ? 'on' : null);
+      li.appendChild(el('span', 'swatch tone-' + b[2]));
+      li.appendChild(el('span', null, b[0] === 0 ? 'Below ' + bands[i - 1][0] : b[0] + '–' + (i ? bands[i - 1][0] - 1 : 100)));
+      li.appendChild(el('span', null, b[1]));
+      sc.appendChild(li);
+    });
+    var tb = document.getElementById('cpScoreBody'); tb.innerHTML = '';
+    SC.parts.forEach(function (x) {
+      var tr = el('tr', x.pct === null ? 'left-out' : null);
+      tr.appendChild(el('td', null, x.label));
+      tr.appendChild(el('td', 'num', x.weight + '%'));
+      tr.appendChild(el('td', 'num' + (x.pct === null ? '' : ' tone-text-' + A.rag(x.pct, rule)), x.pct === null ? 'Not measured' : C.fmtPct(x.pct)));
+      tr.appendChild(el('td', 'num', x.points === null ? '—' : x.points.toFixed(2)));
+      tb.appendChild(tr);
+    });
+    var tot = el('tr', 'total');
+    tot.appendChild(el('td', null, 'Total'));
+    tot.appendChild(el('td', 'num', SC.weightUsed + '%'));
+    tot.appendChild(el('td', 'num', ''));
+    tot.appendChild(el('td', 'num', SC.value === null ? '—' : SC.value.toFixed(2)));
+    tot.title = SC.missing.length ? 'Points add up to ' + SC.parts.reduce(function (a, x) { return a + (x.points || 0); }, 0).toFixed(2) + ' of ' + SC.weightUsed + '; scaled to 100' : '';
+    tb.appendChild(tot);
+  }
+
+  /* ---------- Compliance page: look-ahead readiness, delay reasons, constraint owners and progress updates.
+     Coloured by tolerance.compliance; every tile, bar and row opens the activities or constraints behind it. ---------- */
+  function renderCompliance(V) {
+    var CP = V.compliance;
+    if (!CP) return;
+    var rule = (CUR.data.tolerance || {}).compliance;
+    renderScore(V.complianceScore, rule);
+    var LA = CP.lookahead, DR = CP.delayReasons, CO = CP.constraintOwners, CC = CP.constraintClosure, UP = CP.updates, AQ = CP.actualQuantities, WF = LA.workforce;
+    var laText = weekLabel(A.isoWeek(LA.from)) + '–' + weekLabel(A.isoWeek(LA.to)) + ', ' + fmtRange(LA.from, LA.to);
+    function of(s, noun) { return C.fmtNum(s.count) + ' of ' + plural(s.total, noun, noun === 'activity' ? 'activities' : null); }
+    function tile(label, s, noun, pick) {
+      return kpiTile({ label: label, value: s ? C.fmtPct(s.pct) : '—', tone: A.rag(s ? s.pct : null, rule), sub: s ? of(s, noun) : 'No feed for this project', pick: pick });
+    }
+    function look(pred, title) { return lister({ type: 'compliance', set: 'look', pred: pred }, title, laText); }
+    /* one bar per measure: assigned (green) and missing (red); the missing part opens the list */
+    function okBars(host, rows, emptyText) {
+      C.barRows(document.getElementById(host), rows.filter(function (r) { return r.s && r.s.total; }).map(function (r) {
+        var miss = r.s.total - r.s.count, pk = miss ? r.pick : null;
+        return { label: r.label, total: r.s.total, valueText: C.fmtPct(r.s.pct), valueCls: 'tone-text-' + A.rag(r.s.pct, rule), pick: pk,
+                 title: r.label + ': ' + r.s.count + ' of ' + r.s.total,
+                 parts: [{ count: r.s.count, cls: 's-ok', label: r.ok || 'Assigned' }, { count: miss, cls: 's-fail', label: r.miss || 'Missing', pick: pk }] };
+      }), { emptyText: emptyText });
+    }
+    function legend(host, items) {
+      var lg = document.getElementById(host); lg.innerHTML = '';
+      items.forEach(function (x) { lg.appendChild(chip(x[0], x[1], x[2], null, x[1] ? x[3] : null)); });
+    }
+
+    /* ---- look-ahead: owner, planned quantity, trade ---- */
+    setText('cpLookDesc', 'Activities planned to start or finish in the next ' + LA.weeks.length + ' weeks, ' + laText);
+    var noOwner = look('noOwner', 'Look-ahead activities without an owner'), noQty = look('noQuantity', 'Look-ahead activities without a planned quantity'),
+        noTrade = look('noTrade', 'Look-ahead activities without a trade'), noWf = look('noWorkforce', 'Look-ahead activities without a planned workforce');
+    var lk = document.getElementById('cpLookKpis'); lk.innerHTML = '';
+    lk.appendChild(tile('Activities with owners', LA.owner, 'activity', LA.owner.total - LA.owner.count ? noOwner : null));
+    lk.appendChild(tile('Activities with planned quantities', LA.quantity, 'activity', LA.quantity.total - LA.quantity.count ? noQty : null));
+    lk.appendChild(tile('Activities with trade assigned', LA.trade, 'activity', LA.trade.total - LA.trade.count ? noTrade : null));
+    lk.appendChild(tile('Activities with workforce assigned', WF, 'activity', WF && WF.total - WF.count ? noWf : null));
+    setText('cpAssignDesc', plural(LA.activities, 'activity', 'activities') + ' in the look-ahead');
+    ensureListBtn('cpAssignDesc', LA.activities ? look('all', 'Look-ahead activities') : null);
+    okBars('cpAssign', [{ label: 'Owner', s: LA.owner, pick: noOwner }, { label: 'Planned quantity', s: LA.quantity, pick: noQty }, { label: 'Trade', s: LA.trade, pick: noTrade },
+                        { label: 'Planned workforce', s: WF, pick: noWf }],
+           'No activities are planned to start or finish in the look-ahead.');
+    legend('cpAssignLegend', [['Assigned', null, 's-ok'], ['Missing', null, 's-fail']]);
+    setText('cpWeeksDesc', 'Assigned · share. Each activity counts in the week it starts, or else the week it finishes');
+    var wb = document.getElementById('cpWeeksBody'); wb.innerHTML = '';
+    function cell(s) {
+      var td = el('td', 'num', s && s.total ? C.fmtNum(s.count) + ' · ' + C.fmtPct(s.pct) : '—');
+      if (s && s.total) td.className += ' tone-text-' + A.rag(s.pct, rule);
+      return td;
+    }
+    LA.weeks.forEach(function (w) {
+      var tr = el('tr');
+      tr.appendChild(nameCell(weekLabel(w.week), fmtRange(w.start, w.end)));
+      tr.appendChild(el('td', 'num', C.fmtNum(w.activities)));
+      tr.appendChild(cell(w.owner)); tr.appendChild(cell(w.quantity)); tr.appendChild(cell(w.trade)); tr.appendChild(cell(w.workforce));
+      if (w.activities) makePick(tr, lister({ type: 'compliance', set: 'look', pred: 'week', start: w.start, end: w.end }, 'Look-ahead activities, ' + weekLabel(w.week), fmtRange(w.start, w.end)));
+      wb.appendChild(tr);
+    });
+
+    /* ---- delay reasons, constraint owners, progress updates ---- */
+    var lwText = UP ? weekLabel(A.isoWeek(UP.from)) + ', ' + fmtRange(UP.from, UP.to) : '';
+    setText('cpMoreDesc', 'Delays and constraints over the whole project · progress updates for activities committed for last week' + (UP ? ' (' + lwText + ')' : ''));
+    function delayed(kind, title) { return lister({ type: 'compliance', set: 'delayed', pred: 'note', value: kind }, title, 'Construction activities past their planned start or finish'); }
+    var consNoOwner = lister({ type: 'constraints', all: true, pred: 'noOwner' }, 'Constraints without an owner', 'All constraints, any date');
+    var dueText = 'Target date on or before ' + C.fmtDate(V.today);
+    var consOpen = lister({ type: 'constraints', all: true, pred: 'dueOpen' }, 'Constraints past their target, not closed', dueText + ' · no completion date');
+    var consClosed = lister({ type: 'constraints', all: true, pred: 'dueClosed' }, 'Constraints due by today, closed', dueText + ' · completed');
+    var notUpdated = lister({ type: 'compliance', set: 'lastWeek', pred: 'notUpdated' }, 'Committed last week, no progress update', lwText + ' · no start, reschedule or completion in the history');
+    var mk = document.getElementById('cpMoreKpis'); mk.innerHTML = '';
+    mk.appendChild(kpiTile({ label: 'Delayed activities with reasons', value: C.fmtPct(DR.pct), tone: A.rag(DR.pct, rule),
+                             sub: DR.total ? C.fmtNum(DR.detailed) + ' detailed note, ' + C.fmtNum(DR['default']) + ' default reason only, of ' + plural(DR.total, 'delayed activity', 'delayed activities') : 'No delayed activities',
+                             pick: DR.none ? delayed('none', 'Delayed activities with no reason recorded') : null }));
+    mk.appendChild(tile('Constraints with owners', CO, 'constraint', CO && CO.total - CO.count ? consNoOwner : null));
+    mk.appendChild(tile('Constraint closure performance', CC, 'constraint', CC && CC.total - CC.count ? consOpen : null));
+    var noAq = lister({ type: 'compliance', set: 'lastWeekDone', pred: 'noActualQuantity' }, 'Completed last week, no actual quantity', lwText + ' · committed for last week and complete, no daily actual quantity recorded');
+    mk.appendChild(tile('Daily progress update compliance', UP, 'activity', UP && UP.total - UP.count ? notUpdated : null));
+    mk.appendChild(tile('Completed tasks with actual quantities', AQ, 'activity', AQ && AQ.total - AQ.count ? noAq : null));
+
+    setText('cpDelayDesc', DR.total ? plural(DR.total, 'delayed activity', 'delayed activities') : 'No delayed activities');
+    ensureListBtn('cpDelayDesc', DR.total ? lister({ type: 'compliance', set: 'delayed' }, 'Delayed activities', 'Construction activities past their planned start or finish') : null);
+    var parts = [['detailed', 'Detailed note', 's-ok'], ['default', 'Default reason only', 's-warning'], ['none', 'No reason', 's-fail']].map(function (k) {
+      return { count: DR[k[0]], cls: k[2], label: k[1], pick: DR[k[0]] ? delayed(k[0], 'Delayed activities: ' + k[1].toLowerCase()) : null };
+    });
+    C.barRows(document.getElementById('cpDelay'), DR.total ? [{ label: 'Delayed activities', total: DR.total, valueText: C.fmtPct(DR.pct), valueCls: 'tone-text-' + A.rag(DR.pct, rule), parts: parts }] : [],
+              { emptyText: 'No delayed activities.' });
+    legend('cpDelayLegend', parts.map(function (p) { return [p.label, p.count, p.cls, p.pick]; }));
+
+    setText('cpConsDesc', CO ? plural(CO.total, 'constraint') + ', any date · ' + C.fmtNum(CC.total) + ' due by today' : 'No constraint feed');
+    okBars('cpCons', [{ label: 'Owner assigned', s: CO, pick: consNoOwner, ok: 'With owner', miss: 'No owner' },
+                      { label: 'Closed, due by today', s: CC, pick: consOpen, ok: 'Closed', miss: 'Open past target' }],
+           CO ? 'No constraints yet.' : 'No constraint feed is configured for this project.');
+    legend('cpConsLegend', CO ? [['With owner', CO.count, 's-ok'], ['No owner', CO.total - CO.count, 's-fail', consNoOwner],
+                                 ['Closed', CC.count, 's-ok', consClosed], ['Open past target', CC.total - CC.count, 's-fail', consOpen]] : []);
+
+    setText('cpUpdDesc', UP ? plural(UP.total, 'activity', 'activities') + ' committed for ' + lwText : 'No commitment feed');
+    ensureListBtn('cpUpdDesc', UP && UP.total ? lister({ type: 'compliance', set: 'lastWeek' }, 'Committed last week', lwText) : null);
+    okBars('cpUpd', [{ label: 'Committed last week', s: UP, pick: notUpdated, ok: 'Updated', miss: 'No update' }], UP ? 'Nothing was committed for last week.' : 'No commitment feed is configured for this project.');
+    legend('cpUpdLegend', UP ? UP.byEvent.map(function (e) {
+      return [e.label, e.count, 's-ok', lister({ type: 'compliance', set: 'lastWeek', pred: 'update', value: e.label }, 'Committed last week: ' + e.label.toLowerCase(), lwText)];
+    }).concat([['No update', UP.total - UP.count, 's-fail', notUpdated]]) : []);
+
+    setText('cpAqDesc', AQ ? plural(AQ.total, 'completed activity', 'completed activities') + ' committed for ' + lwText : 'No daily quantity feed');
+    ensureListBtn('cpAqDesc', AQ && AQ.total ? lister({ type: 'compliance', set: 'lastWeekDone' }, 'Completed, committed for last week', lwText) : null);
+    okBars('cpAq', [{ label: 'Completed last week', s: AQ, pick: noAq, ok: 'Actual quantity recorded', miss: 'No actual quantity' }],
+           AQ ? 'No activity committed for last week is complete.' : 'No daily quantity feed is configured for this project.');
+    legend('cpAqLegend', AQ ? [['Actual quantity recorded', AQ.count, 's-ok'], ['No actual quantity', AQ.total - AQ.count, 's-fail', noAq]] : []);
   }
 
   /* ========================================================== landing page */

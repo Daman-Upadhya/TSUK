@@ -45,7 +45,8 @@
     "constraintsOnTime":  { "label": "% Constraints Resolved On-Time", "good": [">=", 70],  "watch": [">=", 40], "text": ["≥ 70%", "40 – 69%", "< 40%"] },
     "constraintLag":      { "label": "Avg. Constraint Lag (Days)",     "good": ["<=", 7],   "watch": ["<=", 20], "text": ["≤ 7 days", "8 – 20 days", "> 20 days"] },
     "unlinked":           { "label": "% Unlinked Constraints",         "good": ["<=", 30],  "watch": ["<=", 60], "text": ["≤ 30%", "31 – 60%", "> 60%"] },
-    "plannedDuration":    { "label": "Planned Duration - 6 Week Avg.", "good": ["<=", 5],   "watch": ["<=", 10], "text": ["≤ 5 days", "6-10 days", "> 10 days"] }
+    "plannedDuration":    { "label": "Planned Duration - 6 Week Avg.", "good": ["<=", 5],   "watch": ["<=", 10], "text": ["≤ 5 days", "6-10 days", "> 10 days"] },
+    "compliance":         { "label": "Compliance KPIs (all six)",      "good": [">=", 90],  "watch": [">=", 70], "text": ["≥ 90%", "70 – 89%", "< 70%"] }
   },
 
   "reasons": {
@@ -130,6 +131,29 @@
       "issue": ["Warning", "Stopped", "Rejected at quality check"],
       "ready": ["Ready", "Forced Ready"],
       "notStarted": ["Not Ready", "Not Committed"]
+    }
+  },
+
+  "compliance": {
+    "_comment": "Compliance page. lookaheadWeeks: calendar weeks from next Monday. quantityFields: task feed fields tried in order for the planned (total) quantity; > 0 counts as assigned. updateEvents: [text in the activity history (case-insensitive), label]; any one counts as a progress update. noteMarkers: how a note starts in the history; a note that is only listed reasons (reasons.order) is a default reason, anything else a detailed note.",
+    "lookaheadWeeks": 6,
+    "quantityFields": ["totalQuantity", "plannedQuantity", "quantity"],
+    "updateEvents": [["started", "Started"], ["rescheduled", "Rescheduled"], ["completed", "Completed"]],
+    "noteMarkers": ["Note added:", "Note:"],
+    "score": {
+      "_comment": "Overall VisiLean compliance score: sum of weight x KPI % / sum of the weights used. weights: [path in metrics.compliance, label, weight]; a KPI with nothing to measure (no feed, empty population) is left out and the other weights re-scaled. ratings: [minimum score, label, tone], first match wins.",
+      "weights": [
+        ["lookahead.owner", "Activities with owners", 15],
+        ["lookahead.quantity", "Activities with planned quantities", 15],
+        ["lookahead.trade", "Activities with trade assigned", 10],
+        ["lookahead.workforce", "Activities with workforce assigned", 10],
+        ["delayReasons", "Delayed activities with delay reasons", 15],
+        ["constraintOwners", "Constraints with owners", 10],
+        ["constraintClosure", "Constraint closure performance", 10],
+        ["updates", "Daily progress update compliance", 10],
+        ["actualQuantities", "Completed tasks with actual quantities", 5]
+      ],
+      "ratings": [[95, "Excellent", "good"], [90, "Good", "good"], [80, "Needs improvement", "warn"], [70, "Poor", "warn"], [0, "Critical", "bad"]]
     }
   },
 

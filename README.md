@@ -56,9 +56,11 @@ logic, template or data changed since that approval.
 P<key>/project.json + manifest.json
    + build/project_defaults.json (everything the project does not set)
    -> build/fetch.py        token: VL_TOKEN_<CODE> -> VL_TOKENS_JSON[code] -> tokens.json
-                            3 calls: <baseUrl>?accessToken=...&projectId=...&type=task&Include...=true
+                            5 calls: <baseUrl>?accessToken=...&projectId=...&type=task&Include...=true
                                                                     ...&type=committedTask
                                                                     ...&type=constraintLog
+                                                                    ...&type=workForce
+                                                                    ...&type=dailyquantity
                             live fetch (3 attempts) -> .cache/<key>.json ; outage -> cache ; no cache -> "unavailable"
    -> Template/calculation.py   normalise(feeds, data) -> compute(model, project, data, today)
    -> P<key>/overrides/extra_calc.py  (optional) extend(metrics, ...)
@@ -81,11 +83,19 @@ The logic is a port of the **Digital Reality - KPIs (Committed)** Power BI model
 docstring has the table. The model itself is no longer in the repository (it is in the git
 history before its removal on 6 Oct 2026).
 
-- **Two pages**, as tabs under the filter bar: **Performance** (everything below except
+- **Pages**, as tabs under the filter bar: **Performance** (everything below except
   constraints) and **Constraints** (all constraint KPIs, status, category, target-week trend and
   the overdue list). The Constraints tab shows how many constraints are overdue in the current
   filter context. The slicers apply to both pages, and the open page is kept in the URL hash
   (`#page=constraints`) with the filters.
+- **Compliance page** (third tab): look-ahead activities (planned to start or finish in the
+  next 6 weeks from next Monday) with an owner, a planned quantity and a trade; delayed
+  activities with a detailed note or a default reason; constraints with an owner; constraints due by
+  today that are closed; and last
+  week's commitments with a start / reschedule / complete in their history; look-ahead activities
+  with a planned workforce (`type=workForce`) and last week's completed commitments with an actual
+  quantity (`type=dailyquantity`). An overall VisiLean compliance score (weighted, out of 100,
+  rated Excellent to Critical) heads the page. See CHANGES.md 3.8.
 - **Export PPC review**: a button in the control bar opens a standalone report for the
   selected range and filters, ready to send: committed / kept / missed totals, PPC for the
   range, the 6-week rolling PPC and last week's PPC; an overall chart of kept and missed per
@@ -206,7 +216,7 @@ landing page on the next portfolio refresh.
 
 | Workflow | Runs | Does |
 |---|---|---|
-| `refresh-<CODE>.yml`, one per project | 2× a day, staggered; or "Run workflow" | 3 API calls → `<CODE>/index.html` + `build.json` → validate, credential scan → publish that folder to `gh-pages` → start `portfolio.yml`. Goes red if the token is rejected or the page has no data, after publishing |
+| `refresh-<CODE>.yml`, one per project | 2× a day, staggered; or "Run workflow" | 5 API calls → `<CODE>/index.html` + `build.json` → validate, credential scan → publish that folder to `gh-pages` → start `portfolio.yml`. Goes red if the token is rejected or the page has no data, after publishing |
 | `portfolio.yml` | after every project refresh; "Run workflow"; a push to `main` that changes `Template/`, `build/`, a `project.json` or `.github/scripts/` | Rebuilds `index.html` and `portfolio.json` from the published `build.json` files and publishes them. On a push, or with "Refresh every project first" ticked, it also starts every project refresh |
 
 `.github/scripts/pages.sh` does the `gh-pages` work for both. The branch always holds a

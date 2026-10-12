@@ -445,26 +445,47 @@
 
   /* ---------- gauge ---------- */
   /* A 180-degree arc from 0 to max; value null draws the empty track only. */
+  /* gauge(svg, value, {max, tone, text, sub, bands:[{from, to, tone, label}], aria})
+     A 180° speedometer: a thick arc filled to the value in its tone, over a recessive track. With
+     bands, a thin outer ring shows the rating scale (2px surface gaps between bands, the value's
+     band at full strength, the rest faded), each band with a tooltip, and a marker at the value. */
   function gauge(svg, value, opts) {
     opts = opts || {};
     while (svg.firstChild) svg.removeChild(svg.firstChild);
-    var max = opts.max || 100, cx = 100, cy = 100, r = 80;
-    svg.setAttribute('viewBox', '0 0 200 118');
-    function arc(frac) {
-      var a = Math.PI * (1 - frac);
-      return 'M ' + (cx - r) + ' ' + cy + ' A ' + r + ' ' + r + ' 0 0 1 ' + (cx + r * Math.cos(a)).toFixed(2) + ' ' + (cy - r * Math.sin(a)).toFixed(2);
+    var max = opts.max || 100, cx = 110, cy = 112, r = 84, rb = 100, bands = opts.bands || [];
+    svg.setAttribute('viewBox', '0 0 220 ' + (bands.length ? 124 : 122));
+    function pt(frac, rad) { var a = Math.PI * (1 - frac); return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)]; }
+    function arc(f0, f1, rad) {
+      var p0 = pt(f0, rad), p1 = pt(f1, rad);
+      return 'M ' + p0[0].toFixed(2) + ' ' + p0[1].toFixed(2) + ' A ' + rad + ' ' + rad + ' 0 0 1 ' + p1[0].toFixed(2) + ' ' + p1[1].toFixed(2);
     }
-    svg.appendChild(svgEl('path', { d: arc(1), fill: 'none', 'stroke-width': 16, 'class': 'g-track' }));
-    if (value !== null && value !== undefined) {
-      var f = Math.max(0.002, Math.min(1, value / max));
-      svg.appendChild(svgEl('path', { d: arc(f), fill: 'none', 'stroke-width': 16, 'class': 'g-val tone-' + (opts.tone || 'inert') }));
+    var has = value !== null && value !== undefined, f = has ? Math.max(0, Math.min(1, value / max)) : 0;
+    svg.appendChild(svgEl('path', { d: arc(0, 1, r), fill: 'none', 'stroke-width': 18, 'class': 'g-track' }));
+    if (has && f > 0) svg.appendChild(svgEl('path', { d: arc(0, f, r), fill: 'none', 'stroke-width': 18, 'class': 'g-val tone-' + (opts.tone || 'inert') }));
+    var gap = 2 / rb / Math.PI;   /* a 2px surface gap between bands, as a fraction of the half turn */
+    bands.forEach(function (b) {
+      var on = has && value >= b.from && (value < b.to || (b.to >= max && value <= max));
+      var seg = svgEl('path', { d: arc(b.from / max + (b.from > 0 ? gap / 2 : 0), b.to / max - (b.to < max ? gap / 2 : 0), rb), fill: 'none', 'stroke-width': 6,
+                                'class': 'g-band tone-' + b.tone + (on ? ' on' : '') });
+      svg.appendChild(seg);
+      attachTooltip(seg, b.label + ': ' + b.from + (b.to >= max ? '–' + max : '–' + (b.to - 1)));
+    });
+    if (has && bands.length) {   /* marker: a ringed dot on the band ring at the value */
+      var m = pt(f, rb);
+      svg.appendChild(svgEl('circle', { cx: m[0].toFixed(2), cy: m[1].toFixed(2), r: 6, 'class': 'g-mark tone-' + (opts.tone || 'inert') }));
     }
-    var num = svgEl('text', { x: cx, y: cy - 6, 'text-anchor': 'middle', 'class': 'g-num' });
-    num.textContent = value === null || value === undefined ? '—' : String(Math.round(value));
+    [[0, 'start'], [1, 'end']].forEach(function (e) {
+      var t = svgEl('text', { x: e[0] ? cx + r + 9 : cx - r - 9, y: cy + 14, 'text-anchor': e[0] ? 'end' : 'start', 'class': 'g-end' });
+      t.textContent = e[0] ? String(max) : '0';
+      svg.appendChild(t);
+    });
+    var num = svgEl('text', { x: cx, y: cy - 10, 'text-anchor': 'middle', 'class': 'g-num' });
+    num.textContent = has ? (opts.text || String(Math.round(value))) : '—';
     svg.appendChild(num);
-    var sub = svgEl('text', { x: cx, y: cy + 14, 'text-anchor': 'middle', 'class': 'g-sub' });
+    var sub = svgEl('text', { x: cx, y: cy + 10, 'text-anchor': 'middle', 'class': 'g-sub' });
     sub.textContent = opts.sub || 'of ' + max;
     svg.appendChild(sub);
+    if (opts.aria) svg.setAttribute('aria-label', opts.aria);
   }
 
   /* ---------- formatting shared with app.js ---------- */

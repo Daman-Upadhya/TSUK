@@ -381,6 +381,65 @@ With them gone:
   gone, as it would have published an empty page over the live one.
 - `--source sample` still works locally for exports saved under `sample/<CODE>.…`.
 
+### 3.8 Compliance page, 12 Oct
+
+A third tab, **Compliance**, for CIVIL (and every project, since the template is shared). It has
+nine KPIs, each a percentage coloured by `tolerance.compliance` (good 90%+, watch 70–89%):
+
+| KPI | Population | Counts as compliant |
+|---|---|---|
+| Activities with owners | Activities planned to **start or finish** in the next 6 calendar weeks, from **next Monday** (the look-ahead) | `owner` is set |
+| Activities with planned quantities | Same | planned quantity > 0, read from the first of `compliance.quantityFields` present (`totalQuantity`, `plannedQuantity`, `quantity`) |
+| Activities with trade assigned | Same | `trade` is set |
+| Delayed activities with reasons | Delayed activities (MasterTable[Delay]: Construction, past planned start or finish, not started / finished), whole project | a **detailed note** (a `Note added:` / `Note:` whose text is more than the listed reasons) or a **default reason only** (a note that is just a listed reason, or a listed reason in the history). Both are shown separately |
+| Constraints with owners | Every constraint, any date | `owner` is set |
+| Constraint closure performance | Constraints with a target date **on or before today** | a completion date is set (which is what makes a constraint Closed). A target of today counts as due here, unlike the "overdue" measures on the Constraints page, which start the day after |
+| Daily progress update compliance | Activities committed for **last week** (by committed end date) that are in the task feed | the activity history records a start, a reschedule or a completion (`compliance.updateEvents`) |
+| Activities with workforce assigned | The look-ahead, as above | `plannedWorkers` > 0 on at least one day in the daily workforce feed (`type=workForce`, `workforceData[]`) |
+| Completed tasks with actual quantities | Activities committed for **last week** that are complete (actual end set) | `dailyActualQuantity` > 0 on at least one day in the daily quantity feed (`type=dailyquantity`, `dailyQuantityData[]`) |
+
+**Overall VisiLean compliance score** (top of the page): the nine KPIs weighted as below, out
+of 100, then rated. Score = Σ(weight × KPI %) ÷ Σ(weights used). A KPI with nothing to measure
+(no feed, or an empty population such as no completed activity last week) is left out and the
+other weights are scaled up to 100, as the Total Score already does. The card names the KPIs
+left out. The score follows the page's filters. Weights and ratings are
+`compliance.score` in `dashboard_data.json`.
+
+| KPI | Weight |
+|---|---|
+| Activities with owners | 15 |
+| Activities with planned quantities | 15 |
+| Activities with trade assigned | 10 |
+| Activities with workforce assigned | 10 |
+| Delayed activities with delay reasons | 15 |
+| Constraints with owners | 10 |
+| Constraint closure performance | 10 |
+| Daily progress update compliance | 10 |
+| Completed tasks with actual quantities | 5 |
+
+Ratings: 95–100 Excellent, 90–94 Good, 80–89 Needs improvement, 70–79 Poor, below 70 Critical.
+The score and the points are rounded half-up to two decimals in both `calculation.py` and
+`aggregate.js`, so they agree. Each KPI's points are rounded on their own, so they can add up to
+0.01 more or less than the total.
+
+The two daily feeds (added 12 Oct) are matched to activities by `activityGuid`, ignoring case.
+Each entry's date (epoch ms, UK midnight) is not used: an activity counts if any day qualifies.
+A feed that is not fetched shows "—", not 0%. Both feeds are on for every project in
+`build/project_defaults.json`, so a refresh now makes five API calls. Like the other optional
+feeds, if one of them fails, the whole refresh falls back to the last good copy.
+
+- The page has its own trade / location / organisation filters. The date range is hidden there:
+  both windows are fixed.
+- Every tile, bar, legend chip and week row opens the activities or constraints behind it.
+  Tiles open the gaps, for example the look-ahead activities without an owner.
+- `calculation.compliance()` and `Agg.compliance()` compute the same numbers. Checked in headless
+  Chrome on a synthetic CIVIL export: all 7 measures agree, and 19 lists match the counts they
+  were opened from.
+- **Not yet checked against live data.** CIVIL had no token when this was built. The quantity
+  field name, the history wording for start / reschedule / complete, and the note marker are
+  assumptions. Each is a setting in the `compliance` block of `dashboard_data.json`, so a
+  mismatch is a config fix, not a code change.
+
 ## 4. Export PPC review
 
 The button builds a standalone report for the current range and filters, and opens it in a

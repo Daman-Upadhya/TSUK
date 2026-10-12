@@ -7,8 +7,9 @@ Token resolution, in order (every candidate found is kept, so a rejected one fal
   2. VL_TOKENS_JSON        {"PAR14": "<token>", ...} (one repository secret for all projects)
   3. tokens.json           same map, repo root, gitignored, for local runs
 
-Feeds: every project has the task feed (source.type, default "task"). The commitment and
-constraint feeds are optional: source.feeds.committed / source.feeds.constraints, each
+Feeds: every project has the task feed (source.type, default "task"). The commitment,
+constraint, daily workforce and daily quantity feeds are optional: source.feeds.committed /
+.constraints / .workforce / .dailyQuantity, each
 {"type": "<api type>", "extraQuery": "..."}. A feed without a type is not fetched and comes
 through as None, so its KPIs show as "no data" instead of a guessed number.
 
@@ -16,7 +17,7 @@ Outcomes of fetch_raw():
   ("live",   feeds)  fetched now; also written to .cache/<key>.json
   ("cache",  feeds)  VisiLean unreachable, last good copy used
   ("sample", feeds)  --source sample, or --source auto with no token
-  feeds = {"tasks": [...], "committed": [...] | None, "constraints": [...] | None}
+  feeds = {"tasks": [...], "committed" / "constraints" / "workforce" / "dailyQuantity": [...] | None}
   raises TokenRejected   every candidate was refused -> the run must go red
   raises Unreachable     no live data and no cache -> page is built as "unavailable"
 
@@ -113,7 +114,7 @@ def token_sources(key: str) -> list[str]:
 
 # ----------------------------------------------------------------------------- http
 
-OPTIONAL_FEEDS = ("committed", "constraints")
+OPTIONAL_FEEDS = ("committed", "constraints", "workforce", "dailyQuantity")
 
 
 def feed_specs(project: dict) -> dict:
@@ -262,7 +263,7 @@ def _sample_path(rel: str) -> str:
 
 
 def read_sample(project: dict) -> dict:
-    """source.sampleFile is the task feed; source.sampleFeeds.committed / .constraints are optional."""
+    """source.sampleFile is the task feed; source.sampleFeeds.<feed> (OPTIONAL_FEEDS) are optional."""
     src = project.get("source") or {}
     p = _sample_path(src.get("sampleFile") or ("sample/%s.tasks.json.gz" % project["key"]))
     if not os.path.exists(p):

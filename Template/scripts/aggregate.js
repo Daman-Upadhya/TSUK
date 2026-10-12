@@ -387,6 +387,83 @@
     };
   }
 
+  /* ---------- Compliance page (port of calculation.compliance) ----------
+     compliance(facts, F, data) -> a run() view over all dates under the organisation / trade /
+     location filters, with V.compliance. The windows are fixed: the look-ahead (next N weeks from
+     next Monday) and last week; the date range does not apply. */
+  function compliance(facts, F, data) {
+    var V = run(facts, { org: F.org, trade: F.trade, loc: F.loc }, data), X = V.sets;
+    var LA = facts.lookahead, LW = facts.lastWeek;
+    V.compliance = null;
+    if (!LA || !LW) return V;   /* a page built before the compliance page existed */
+    function share(rows, pred) { var n = rows.filter(pred).length; return { count: n, total: rows.length, pct: pct(n, rows.length) }; }
+    var flt = makeFilter(F, X.UN);
+    var look = X.tasksA.filter(function (t) { return inRange(t.ps, LA.from, LA.to) || inRange(t.pe, LA.from, LA.to); });
+    var delayed = X.tasksA.filter(function (t) { return t.dl; });
+    var consAll = facts.constraints ? facts.constraints.filter(function (r) { return flt.consOk(r, r.g ? X.byGuid[r.g] : null); }) : null;
+    var consFirst = {};
+    (consAll || []).forEach(function (r) { if (!consFirst[r.u]) consFirst[r.u] = r; });
+    var firsts = Object.keys(consFirst).map(function (u) { return consFirst[u]; });
+    var lwComm = {};
+    (facts.commitments || []).forEach(function (c) { var t = X.byGuid[c.g]; if (t && flt.taskOk(t) && inRange(c.ce, LW.from, LW.to)) lwComm[c.g] = c; });
+    var lwTasks = Object.keys(lwComm).sort().map(function (g) { return X.byGuid[g]; });
+    var ev = get(data, 'compliance.updateEvents', []) || [];
+    var dr = share(delayed, function (t) { return t.nt; });
+    dr.detailed = delayed.filter(function (t) { return t.nt === 'detailed'; }).length;
+    dr['default'] = delayed.filter(function (t) { return t.nt === 'default'; }).length;
+    dr.none = dr.total - dr.detailed - dr['default'];
+    /* the daily feeds: wf / aq are null on every task when the feed was not fetched */
+    function fed(k) { return facts.tasks.some(function (t) { return t[k] !== null && t[k] !== undefined; }); }
+    var hasWf = fed('wf'), lwDone = lwTasks.filter(function (t) { return t.ae; });
+    var up = null, aq = null;
+    if (facts.commitments && fed('aq')) { aq = share(lwDone, function (t) { return t.aq; }); aq.from = LW.from; aq.to = LW.to; }
+    if (facts.commitments) {
+      up = share(lwTasks, function (t) { return t.up.length > 0; });
+      up.from = LW.from; up.to = LW.to;
+      up.byEvent = ev.map(function (e) { return { label: e[1], count: lwTasks.filter(function (t) { return t.up.indexOf(e[1]) >= 0; }).length }; });
+    }
+    /* each look-ahead activity in the week it starts in, or else the week it finishes in */
+    var weeks = weekSpans(LA.from, LA.to).map(function (s) {
+      var rows = look.filter(function (t) { return inRange(inRange(t.ps, LA.from, LA.to) ? t.ps : t.pe, s.start, s.end); });
+      return { week: s.week, start: s.start, end: s.end, activities: rows.length,
+               owner: share(rows, function (t) { return t.ow; }), quantity: share(rows, function (t) { return t.q > 0; }), trade: share(rows, function (t) { return t.tr; }),
+               workforce: hasWf ? share(rows, function (t) { return t.wf; }) : null };
+    });
+    V.compliance = {
+      lookahead: { from: LA.from, to: LA.to, activities: look.length, weeks: weeks,
+                   owner: share(look, function (t) { return t.ow; }), quantity: share(look, function (t) { return t.q > 0; }), trade: share(look, function (t) { return t.tr; }),
+                   workforce: hasWf ? share(look, function (t) { return t.wf; }) : null },
+      delayReasons: dr,
+      constraintOwners: consAll ? share(firsts, function (r) { return r.ow; }) : null,
+      /* closure: constraints with a target on or before today that have a completion date */
+      constraintClosure: consAll ? share(firsts.filter(function (r) { return r.tg && r.tg <= facts.today; }), function (r) { return r.cp; }) : null,
+      updates: up,
+      actualQuantities: aq
+    };
+    V.complianceScore = complianceScore(V.compliance, data);
+    X.cx = { look: look, delayed: delayed, lastWeek: lwTasks, lastWeekDone: lwDone, lwComm: lwComm, lookahead: LA };
+    X.consAll = consAll;
+    return V;
+  }
+
+  /* Overall VisiLean compliance score (port of calculation.compliance_score): sum of weight x KPI %
+     over the weights used; a KPI with nothing to measure is left out and the rest re-scaled. */
+  function complianceScore(cp, data) {
+    var parts = [], used = 0, total = 0;
+    (get(data, 'compliance.score.weights', []) || []).forEach(function (w) {
+      var s = get(cp, w[0], null), p = s ? s.pct : null;
+      if (p !== null && p !== undefined) { used += w[2]; total += w[2] * p; } else p = null;
+      parts.push({ key: w[0], label: w[1], weight: w[2], pct: p, points: p === null ? null : Math.round(w[2] * p) / 100 });
+    });
+    var value = used ? Math.round(100 * total / used) / 100 : null, rating = null, tone = 'inert';
+    if (value !== null) {
+      var bands = get(data, 'compliance.score.ratings', []) || [];
+      for (var i = 0; i < bands.length; i++) if (value >= bands[i][0]) { rating = bands[i][1]; tone = bands[i][2]; break; }
+    }
+    return { value: value, rating: rating, tone: tone, weightUsed: used, parts: parts,
+             missing: parts.filter(function (x) { return x.pct === null; }).map(function (x) { return x.label; }) };
+  }
+
   /* ---------- the records behind a mark, for the detail list ----------
      records(V, spec, data) -> rows. V is a run() result; the rows come from the same filtered sets
      the measures were computed from, so a list always matches the number that was clicked.
@@ -399,7 +476,12 @@
                       spec.pred: all | late | delayDays | duration | reason | event | standard
        'constraints'  constraints with a target in the range (spec.l6w for the L6W tiles),
                       spec.pred: all | open | overdue | pastTarget | onTime | lag | unlinked |
-                      beforeStart | status | category | week (+ start, end, state) */
+                      beforeStart | status | category | week (+ start, end, state) | noOwner | dueClosed | dueOpen;
+                      spec.all: every date (the Compliance page, after compliance())
+       'compliance'   activities behind a Compliance page mark: spec.set look | delayed | lastWeek |
+                      lastWeekDone (completed), spec.pred: all | noOwner | noQuantity | noTrade |
+                      noWorkforce | noActualQuantity | note (value: detailed |
+                      default | none) | updated | notUpdated | update (value: label) | week (value) */
   function records(V, spec, data) {
     var X = V.sets, UN = X.UN, today = X.today;
     var mapping = get(data, 'reasons.categories', {}) || {};
@@ -413,7 +495,8 @@
                plannedStart: t ? t.ps : null, plannedEnd: t ? t.pe : null, actualStart: t ? t.as : null, actualEnd: t ? t.ae : null,
                committedWeek: c ? c.cw : null, committedEnd: c ? c.ce : null, kept: c ? !!c.ok : null,
                delayDays: t ? t.dd : null, delayKind: t ? t.dk : null, duration: t ? t.d : null,
-               categories: cats(t), reasons: t ? t.rs : [], events: t ? t.ev : [] };
+               categories: cats(t), reasons: t ? t.rs : [], events: t ? t.ev : [],
+               owner: t ? t.ow : null, quantity: t ? t.q : null, workforce: t ? t.wf : null, actualQuantity: t ? t.aq : null, updates: (t && t.up) || [], noteKind: t ? t.nt : null };
     }
     function byName(x, y) { return (x.name || '').localeCompare(y.name || ''); }
 
@@ -454,8 +537,29 @@
       });
     }
 
+    if (spec.type === 'compliance') {
+      var cx = X.cx;
+      if (!cx) return [];
+      var CP = {
+        all: function () { return true; },
+        noOwner: function (t) { return !t.ow; },
+        noQuantity: function (t) { return !(t.q > 0); },
+        noTrade: function (t) { return !t.tr; },
+        noWorkforce: function (t) { return !t.wf; },
+        noActualQuantity: function (t) { return !t.aq; },
+        note: function (t) { return (t.nt || 'none') === spec.value; },
+        updated: function (t) { return t.up.length > 0; },
+        notUpdated: function (t) { return !t.up.length; },
+        update: function (t) { return t.up.indexOf(spec.value) >= 0; },
+        week: function (t) { var la = cx.lookahead; var d = inRange(t.ps, la.from, la.to) ? t.ps : t.pe; return inRange(d, spec.start, spec.end); }
+      }[spec.pred || 'all'];
+      return (cx[spec.set] || []).filter(CP).map(function (t) { return act(t, spec.set === 'lastWeek' || spec.set === 'lastWeekDone' ? cx.lwComm[t.g] : null); }).sort(function (x, y) {
+        return (x.plannedStart || '').localeCompare(y.plannedStart || '') || (x.trade || '').localeCompare(y.trade || '') || byName(x, y);
+      });
+    }
+
     if (spec.type === 'constraints') {
-      var rows = (spec.l6w ? X.consL : X.cons) || [];
+      var rows = (spec.all ? X.consAll : (spec.l6w ? X.consL : X.cons)) || [];
       var Q = {
         all: function () { return true; },
         open: function (r) { return !r.cp; },
@@ -465,6 +569,9 @@
         onTime: function (r) { return r.cp && r.tg && r.cp <= r.tg; },
         lag: function (r) { return r.cp && r.tg; },
         unlinked: function (r) { return !r.g; },
+        noOwner: function (r) { return !r.ow; },
+        dueClosed: function (r) { return r.tg && r.tg <= today && !!r.cp; },
+        dueOpen: function (r) { return r.tg && r.tg <= today && !r.cp; },
         beforeStart: function (r) { return r.g && r.cp && r.tps && r.cp <= r.tps; },
         status: function (r) { return r.s === spec.value; },
         category: function (r) { return r.c === spec.value; },
@@ -579,5 +686,5 @@
              latestRolling: latest, latestTone: rag(latest, tol), activities: acts, unassigned: UN };
   }
 
-  global.Agg = { run: run, records: records, review: review, options: options, extent: extent, isoWeek: isoWeek, mondayOf: mondayOf, addDays: addDays, weekSpans: weekSpans };
+  global.Agg = { run: run, compliance: compliance, complianceScore: complianceScore, records: records, rag: rag, review: review, options: options, extent: extent, isoWeek: isoWeek, mondayOf: mondayOf, addDays: addDays, weekSpans: weekSpans };
 })(window);

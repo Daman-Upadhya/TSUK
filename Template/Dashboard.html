@@ -463,6 +463,39 @@ svg.chart .col.w-open { fill: var(--s-rej); }
 svg.chart .col-total { fill: var(--ink); font-weight: 600; }
 .legend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 4px; }
 
+/* ---------- compliance page ---------- */
+.cp-score { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 2fr); gap: 18px 32px; align-items: start; }
+@media (max-width: 960px) { .cp-score { grid-template-columns: minmax(0, 1fr); } }
+.cp-score-main { display: flex; flex-direction: column; gap: 8px; }
+.cp-score-main .kpi-label { margin: 0; }
+svg.gauge { width: 100%; max-width: 300px; height: auto; display: block; overflow: visible; }
+svg.gauge .g-track { stroke: var(--inset); stroke-linecap: butt; }
+svg.gauge .g-val { stroke: var(--inert); stroke-linecap: butt; }
+svg.gauge .g-val.tone-good { stroke: var(--good); } svg.gauge .g-val.tone-warn { stroke: var(--warn); } svg.gauge .g-val.tone-bad { stroke: var(--bad); }
+svg.gauge .g-band { opacity: .3; stroke-linecap: butt; transition: opacity .12s var(--ease); }
+svg.gauge .g-band.on, svg.gauge .g-band:hover { opacity: 1; }
+svg.gauge .g-band.tone-good { stroke: var(--good); } svg.gauge .g-band.tone-warn { stroke: var(--warn); } svg.gauge .g-band.tone-bad { stroke: var(--bad); }
+svg.gauge .g-mark { stroke: var(--card); stroke-width: 2.5; fill: var(--inert); }
+svg.gauge .g-mark.tone-good { fill: var(--good); } svg.gauge .g-mark.tone-warn { fill: var(--warn); } svg.gauge .g-mark.tone-bad { fill: var(--bad); }
+svg.gauge .g-num { fill: var(--ink); font-size: 34px; font-weight: 600; letter-spacing: -.03em; font-family: var(--font); font-variant-numeric: tabular-nums; }
+svg.gauge .g-sub, svg.gauge .g-end { fill: var(--muted); font-size: 11.5px; font-family: var(--font); font-variant-numeric: tabular-nums; }
+.cp-score-main .kpi-sub { margin: 0; }
+.cp-scale { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cp-scale li { display: grid; grid-template-columns: 10px 64px minmax(0, 1fr); gap: 8px; align-items: center; padding: 3px 8px; border-radius: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cp-scale li.on { background: var(--inset); color: var(--ink); font-weight: 600; }
+.cp-scale .swatch.tone-good { background: var(--good); } .cp-scale .swatch.tone-warn { background: var(--warn); } .cp-scale .swatch.tone-bad { background: var(--bad); }
+#cpScoreBody tr.total td { font-weight: 600; border-top: 1px solid var(--line); background: var(--inset); }
+#cpScoreBody tr.left-out td { color: var(--faint); }
+.cp-kpis { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+@media (min-width: 900px) { .cp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1200px) { .cp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cp-kpis-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.cp-cards { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+@media (min-width: 900px) { .cp-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+#cpWeeksBody tr.pick:hover td { background: var(--inset); }
+#cpWeeksBody td { white-space: nowrap; }
+#cpWeeksBody .cell-name { min-width: 0; }
+@media (min-width: 961px) { .cp-look { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); } }
+
 /* ---------- callout ---------- */
 .callout { border-radius: var(--r-lg); padding: 10px 14px; font-size: 14px; margin-bottom: 12px; border: 1px solid transparent; }
 .callout.tone-bad { background: var(--bad-bg); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 20%, transparent); }
@@ -547,13 +580,14 @@ footer code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
       <nav class="page-tabs" role="tablist" aria-label="Dashboard pages">
         <button type="button" class="page-tab" role="tab" id="tabPerformance" data-page="performance" aria-controls="pagePerformance" aria-selected="true"><svg class="tab-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 13.5h11"/><path d="M4.5 11V8"/><path d="M8 11V5"/><path d="M11.5 11V3"/></svg>Performance</button>
         <button type="button" class="page-tab" role="tab" id="tabConstraints" data-page="constraints" aria-controls="pageConstraints" aria-selected="false"><svg class="tab-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8 14.6 13.5H1.4Z"/><path d="M8 6.2v3.3"/><path d="M8 11.6v.1"/></svg>Constraints <span class="tab-badge" id="tabConstraintsBadge" hidden></span></button>
+        <button type="button" class="page-tab" role="tab" id="tabCompliance" data-page="compliance" aria-controls="pageCompliance" aria-selected="false"><svg class="tab-ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5h10v11H3z"/><path d="M5.5 6.5 7 8l3-3"/><path d="M5.5 11h5"/></svg>Compliance</button>
       </nav>
       <div class="f-summary" id="fSummary"></div>
       <div class="filters" id="filters" role="group" aria-label="Filters">
-        <div class="dr" id="fDate" title="Date range"></div>
-        <div class="ms" id="fTrade" title="Trade" data-for="performance"></div>
-        <div class="ms" id="fLoc" title="Location" data-for="performance"></div>
-        <div class="ms" id="fOrg" title="Organisation" data-for="performance"></div>
+        <div class="dr" id="fDate" title="Date range" data-for="performance constraints"></div>
+        <div class="ms" id="fTrade" title="Trade" data-for="performance compliance"></div>
+        <div class="ms" id="fLoc" title="Location" data-for="performance compliance"></div>
+        <div class="ms" id="fOrg" title="Organisation" data-for="performance compliance"></div>
         <div class="ms" id="fCat" title="Constraint category" data-for="constraints" hidden></div>
         <div class="ms" id="fCTrade" title="Trade recorded on the constraint" data-for="constraints" hidden></div>
         <div class="ms" id="fCOwn" title="Responsible owner of the constraint" data-for="constraints" hidden></div>
@@ -693,6 +727,74 @@ footer code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
           </table>
         </div>
       </div>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div class="page-panel" id="pageCompliance" role="tabpanel" aria-labelledby="tabCompliance" hidden>
+  <section data-needs-data>
+    <div class="card cp-score">
+      <div class="cp-score-main">
+        <h2 class="kpi-label">Overall VisiLean compliance score</h2>
+        <svg class="gauge" id="cpGauge" role="img" aria-label="Overall compliance score"></svg>
+        <div id="cpScoreRating"></div>
+        <p class="kpi-sub" id="cpScoreSub"></p>
+        <ul class="cp-scale" id="cpScale" aria-label="Rating scale"></ul>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>KPI</th><th class="num">Weight</th><th class="num">KPI score</th><th class="num">Points</th></tr></thead>
+          <tbody id="cpScoreBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section data-needs-data>
+    <div class="section-title"><h2>Look-ahead readiness</h2><span class="desc" id="cpLookDesc"></span></div>
+    <div class="grid grid-kpi cp-kpis" id="cpLookKpis"></div>
+    <div class="grid grid-wide cp-look cons-gap">
+      <div class="card">
+        <div class="card-head"><h2>Assigned in the look-ahead</h2><span class="desc" id="cpAssignDesc"></span></div>
+        <div id="cpAssign"></div>
+        <div class="chips cons-key" id="cpAssignLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>By week</h2><span class="desc" id="cpWeeksDesc"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Week</th><th class="num">Activities</th><th class="num">Owner</th><th class="num">Quantity</th><th class="num">Trade</th><th class="num">Workforce</th></tr></thead>
+            <tbody id="cpWeeksBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-needs-data>
+    <div class="section-title"><h2>Delays, constraints and daily updates</h2><span class="desc" id="cpMoreDesc"></span></div>
+    <div class="grid grid-kpi cp-kpis cp-kpis-5" id="cpMoreKpis"></div>
+    <div class="grid cp-cards cons-gap">
+      <div class="card">
+        <div class="card-head"><h2>Delay reasons</h2><span class="desc" id="cpDelayDesc"></span></div>
+        <div id="cpDelay"></div>
+        <div class="chips cons-key" id="cpDelayLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Constraints</h2><span class="desc" id="cpConsDesc"></span></div>
+        <div id="cpCons"></div>
+        <div class="chips cons-key" id="cpConsLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Progress updates, last week</h2><span class="desc" id="cpUpdDesc"></span></div>
+        <div id="cpUpd"></div>
+        <div class="chips cons-key" id="cpUpdLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Actual quantities, last week</h2><span class="desc" id="cpAqDesc"></span></div>
+        <div id="cpAq"></div>
+        <div class="chips cons-key" id="cpAqLegend"></div>
       </div>
     </div>
   </section>

@@ -50,6 +50,10 @@ The logic is a port of the "Digital Reality - KPIs (Committed)" Power BI semanti
     numbers for build.json, the landing page and the selftest.
     group_performance()   Committed PPC per trade / organisation for the last complete committed week
     reasons_by_trade()    Reasons for variance of activities that missed a commitment, per trade
+    compliance_score()    Overall VisiLean compliance score: weighted Compliance page KPIs, rated
+    compliance()          Compliance page: look-ahead owner / quantity / trade / workforce, delay
+                          reasons, constraint owners, progress updates and actual quantities on
+                          last week's commitments
 
 Entry points:
 
@@ -200,8 +204,32 @@ def _event(history: str, data: dict) -> str | None:
     return None
 
 
+def _updates(history: str, data: dict) -> set:
+    """Progress updates a history row records (Started / Rescheduled / Completed), case-insensitive."""
+    low = (history or "").lower()
+    return {label for needle, label in (_get(data, "compliance.updateEvents", []) or []) if needle.lower() in low}
+
+
+def _note_kinds(history: str, data: dict) -> set:
+    """The notes in a history row ("Note added: <text>"): "default" when the text is only one or more
+    of the listed reasons for variance, "detailed" when it says anything else."""
+    markers = sorted(_get(data, "compliance.noteMarkers", []) or [], key=len, reverse=True)
+    if not history or not markers:
+        return set()
+    out = set()
+    for m in re.finditer("(?:%s)\\s*(.*)" % "|".join(re.escape(x) for x in markers), history):
+        rest = m.group(1)
+        if not rest.strip():
+            continue
+        for r in _get(data, "reasons.order", []) or []:
+            rest = rest.replace(r, "")
+        out.add("detailed" if re.sub(r"[\W_]+", "", rest) else "default")
+    return out
+
+
 def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
     types = set(_get(data, "taskTypes", ["Construction", "Design"]) or [])
+    qty_fields = _get(data, "compliance.quantityFields", ["totalQuantity"]) or []
     by_guid: "OrderedDict[str, dict]" = OrderedDict()
     excluded: dict[str, int] = {}
     history_rows = 0
@@ -241,11 +269,14 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
                 "actualStart": parse_date(r.get("actualStartDate")),
                 "actualEnd": ae,
                 "plannedDuration": dur,
+                "quantity": next((q for q in (_num(r.get(f)) for f in qty_fields) if q is not None), None),
                 "plannedWeek": week_key(_d(pe)),
                 "actualWeek": week_key(_d(ae)),
                 "reasons": set(),
                 "categories": set(),
                 "events": set(),
+                "updates": set(),
+                "notes": set(),
             }
             # Planned_PPC: finished in the same ISO week it was planned to finish
             t["plannedPPC"] = bool(t["actualWeek"] and t["actualWeek"] == t["plannedWeek"])
@@ -255,9 +286,15 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
             t["categories"].add(category)
         if event:
             t["events"].add(event)
+        t["updates"] |= _updates(history, data)
+        t["notes"] |= _note_kinds(history, data)
     tasks = list(by_guid.values())
     for t in tasks:
         t["reasons"], t["categories"], t["events"] = sorted(t["reasons"]), sorted(t["categories"]), sorted(t["events"])
+        t["updates"] = sorted(t["updates"])
+        # the delay reason on record: a detailed note wins over a default reason
+        t["noteKind"] = "detailed" if "detailed" in t["notes"] else ("default" if t["notes"] or t["reasons"] else None)
+        del t["notes"]
     return tasks, {"rows": len(raw or []), "historyRows": history_rows, "excludedByType": excluded}
 
 
@@ -364,6 +401,16 @@ def _constraints(raw, tasks_by_guid: dict, data: dict) -> list[dict] | None:
     return out
 
 
+def _daily(raw, list_key: str, value_key: str) -> set | None:
+    """Activities (upper-case guid) with a value > 0 on at least one day of a daily feed
+    (workForce: workforceData[].plannedWorkers; dailyquantity: dailyQuantityData[].dailyActualQuantity).
+    None when the feed was not fetched."""
+    if raw is None:
+        return None
+    return {str(r.get("activityGuid")).strip().upper() for r in raw
+            if isinstance(r, dict) and any((_num(d.get(value_key)) or 0) > 0 for d in r.get(list_key) or [] if isinstance(d, dict))}
+
+
 def normalise(feeds, data: dict | None = None) -> dict:
     """Raw feeds -> {"tasks", "commitments", "constraints", "feed"}. Accepts a bare task list too."""
     data = data or {}
@@ -371,6 +418,11 @@ def normalise(feeds, data: dict | None = None) -> dict:
         feeds = {"tasks": feeds or []}
     tasks, feed = _tasks(feeds.get("tasks") or [], data)
     by_guid = {t["guid"]: t for t in tasks}
+    workforce = _daily(feeds.get("workforce"), "workforceData", "plannedWorkers")
+    actual_qty = _daily(feeds.get("dailyQuantity"), "dailyQuantityData", "dailyActualQuantity")
+    for t in tasks:  # None: that feed was not fetched
+        t["plannedWorkforce"] = None if workforce is None else t["guid"].upper() in workforce
+        t["actualQuantity"] = None if actual_qty is None else t["guid"].upper() in actual_qty
     return {
         "tasks": tasks,
         "commitments": _commitments(feeds.get("committed"), by_guid),
@@ -913,6 +965,107 @@ def reasons_by_trade(model: dict, data: dict, today: date) -> dict | None:
             "categories": [{"label": c, "count": v} for c, v in ordered], "labels": labels, "rows": rows}
 
 
+# --------------------------------------------------------------------------- compliance page
+
+def lookahead_window(today: date, weeks: int = 6) -> tuple[date, date]:
+    """The next `weeks` calendar weeks, from next Monday."""
+    mon = week_start(today) + timedelta(days=7)
+    return mon, mon + timedelta(days=7 * weeks - 1)
+
+
+def last_week(today: date) -> tuple[date, date]:
+    """Last Monday-Sunday week (the last week of the L6W window)."""
+    sun = week_start(today) - timedelta(days=1)
+    return sun - timedelta(days=6), sun
+
+
+def compliance(model: dict, derived: dict, data: dict, today: date) -> dict:
+    """The Compliance page (Template/scripts/aggregate.js -> compliance() is the filtered twin):
+      look-ahead   activities planned to start or finish in the next N weeks (from next Monday)
+                   with an owner, a planned (total) quantity > 0 and a trade
+      delays       delayed activities (MasterTable[Delay]) by the reason on record: a detailed note,
+                   only a default reason (a note that is just a listed reason, or a listed reason
+                   in the history), or none
+      constraints  constraints (distinct, all dates) with a responsible owner
+      closure      constraints with a target date on or before today that have a completion date
+      updates      activities committed for last week (by committed end, in the task feed) whose
+                   history records a start, a reschedule or a completion
+      workforce    look-ahead activities with planned workers > 0 on some day (workForce feed)
+      actualQuantities  activities committed for last week and completed (actual end set) with an
+                   actual quantity > 0 on some day (dailyquantity feed)
+    A KPI whose feed was not fetched is None."""
+    la = lookahead_window(today, int(_get(data, "compliance.lookaheadWeeks", 6)))
+    lw = last_week(today)
+
+    def share(rows, pred):
+        n = sum(1 for x in rows if pred(x))
+        return {"count": n, "total": len(rows), "pct": _pct(n, len(rows))}
+
+    look = [t for t in model["tasks"] if _in(_d(t["plannedStart"]), la) or _in(_d(t["plannedEnd"]), la)]
+    delayed = [t for t in model["tasks"] if derived[t["guid"]]["delay"]]
+    kinds = {k: sum(1 for t in delayed if t["noteKind"] == k) for k in ("detailed", "default")}
+    kinds["none"] = len(delayed) - kinds["detailed"] - kinds["default"]
+
+    cons = closure = None
+    if model["constraints"] is not None:
+        # one row per constraint (a constraint's linked-activity rows share its owner)
+        first = list({r["uid"]: r for r in model["constraints"]}.values())
+        cons = share(first, lambda r: r["owner"])
+        closure = share([r for r in first if r["target"] and _d(r["target"]) <= today], lambda r: r["completion"])
+
+    upd = aq = None
+    has_wf = any(t["plannedWorkforce"] is not None for t in model["tasks"])
+    if model["commitments"] is not None:
+        by_guid = {t["guid"]: t for t in model["tasks"]}
+        guids = sorted({c["guid"] for c in model["commitments"] if c["linked"] and _in(_d(c["committedEnd"]), lw)})
+        rows = [by_guid[g] for g in guids]
+        if any(t["actualQuantity"] is not None for t in model["tasks"]):
+            aq = dict(share([t for t in rows if t["actualEnd"]], lambda t: t["actualQuantity"]), **{"from": lw[0].isoformat(), "to": lw[1].isoformat()})
+        upd = share(rows, lambda t: t["updates"])
+        upd["byEvent"] = [{"label": label, "count": sum(1 for t in rows if label in t["updates"])}
+                          for _, label in _get(data, "compliance.updateEvents", []) or []]
+    return {
+        "lookahead": {"from": la[0].isoformat(), "to": la[1].isoformat(), "activities": len(look),
+                      "owner": share(look, lambda t: t["owner"]),
+                      "quantity": share(look, lambda t: (t["quantity"] or 0) > 0),
+                      "trade": share(look, lambda t: t["trade"]),
+                      "workforce": share(look, lambda t: t["plannedWorkforce"]) if has_wf else None},
+        "delayReasons": dict(share(delayed, lambda t: t["noteKind"]), **kinds),
+        "constraintOwners": cons,
+        "constraintClosure": closure,
+        "updates": None if upd is None else dict(upd, **{"from": lw[0].isoformat(), "to": lw[1].isoformat()}),
+        "actualQuantities": aq,
+    }
+
+
+def _round_half_up(x: float) -> float:
+    """Math.round, so the page (aggregate.js) shows the same two decimals: 1174.5 -> 1175."""
+    return float(math.floor(x + 0.5))
+
+
+def compliance_score(cp: dict, data: dict) -> dict:
+    """Overall VisiLean compliance score (0..100): sum of weight x KPI % over the weights used
+    (data.compliance.score.weights). A KPI with nothing to measure is left out and the remaining
+    weights re-scaled, as total_score() does. Rated by data.compliance.score.ratings."""
+    parts, used, total = [], 0.0, 0.0
+    for path, label, weight in _get(data, "compliance.score.weights", []) or []:
+        pct = (_get(cp, path) or {}).get("pct")
+        if pct is not None:
+            used += weight
+            total += weight * pct
+        parts.append({"key": path, "label": label, "weight": weight, "pct": pct,
+                      "points": None if pct is None else _round_half_up(weight * pct) / 100})
+    value = _round_half_up(100.0 * total / used) / 100 if used else None
+    rating, tone = None, "inert"
+    if value is not None:
+        for floor, label, t in _get(data, "compliance.score.ratings", []) or []:
+            if value >= floor:
+                rating, tone = label, t
+                break
+    return {"value": value, "rating": rating, "tone": tone, "weightUsed": used, "parts": parts,
+            "missing": [x["label"] for x in parts if x["pct"] is None]}
+
+
 # --------------------------------------------------------------------------- facts for the page
 
 def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
@@ -922,7 +1075,9 @@ def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
       tasks        g guid, id, n name, ty type, st status, o organisation, tr trade, l location,
                    ps/pe planned start/end, as/ae actual start/end, pw planned week, d planned
                    duration, rs reasons, cs reason categories, ss standard groups, ev events,
-                   dl Delay, dd DelayDays, dk delay kind, due/late the %Activity_Delayed flags
+                   dl Delay, dd DelayDays, dk delay kind, due/late the %Activity_Delayed flags,
+                   ow owner, q planned quantity, up progress updates, nt note kind, wf planned workforce,
+                   aq actual quantity recorded (compliance page; wf / aq null when the feed is off)
       commitments  g guid, cw committed week, ce committed end, ok Custom_CommittedPPC, a auto, ln linked
       constraints  u UniqueID, t title, c category, p priority, ow owner, oo owner organisation, l location,
                    tr trade, cr creation, tg target, cm commitment, cp completion, s status,
@@ -935,7 +1090,9 @@ def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
                       "ps": t["plannedStart"], "pe": t["plannedEnd"], "as": t["actualStart"], "ae": t["actualEnd"],
                       "pw": t["plannedWeek"], "d": t["plannedDuration"],
                       "rs": t["reasons"], "cs": t["categories"], "ss": _standard_groups(t["reasons"], data), "ev": t["events"],
-                      "dl": d["delay"], "dd": d["delayDays"], "dk": d["delayKind"], "due": d["dueForPct"], "late": d["delayedForPct"]})
+                      "dl": d["delay"], "dd": d["delayDays"], "dk": d["delayKind"], "due": d["dueForPct"], "late": d["delayedForPct"],
+                      "ow": t["owner"], "q": t["quantity"], "up": t["updates"], "nt": t["noteKind"],
+                      "wf": t["plannedWorkforce"], "aq": t["actualQuantity"]})
     comms = None if model["commitments"] is None else [
         {"g": c["guid"], "cw": c["committedWeek"], "ce": c["committedEnd"], "ok": c["ppc"], "a": c["auto"], "ln": c["linked"]}
         for c in model["commitments"]]
@@ -946,9 +1103,12 @@ def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
         for r in model["constraints"]]
     window = six_week_window(today)
     spans = _week_spans(today, int(_get(data, "ppc.trendWeeks", 12)))
+    la, lw = lookahead_window(today, int(_get(data, "compliance.lookaheadWeeks", 6))), last_week(today)
     return {"today": today.isoformat(),
             "window": {"from": window[0].isoformat(), "to": window[1].isoformat()},
             "trend": {"from": spans[0][0].isoformat(), "to": spans[-1][1].isoformat()},
+            "lookahead": {"from": la[0].isoformat(), "to": la[1].isoformat()},
+            "lastWeek": {"from": lw[0].isoformat(), "to": lw[1].isoformat()},
             "tasks": tasks, "commitments": comms, "constraints": cons}
 
 
@@ -960,6 +1120,7 @@ def compute(model: dict, project: dict, data: dict, today: date) -> dict:
         model = normalise(model, data)
     tasks = model["tasks"]
     derived = {t["guid"]: _derive(t, today) for t in tasks}
+    cp = compliance(model, derived, data, today)
     p = ppc(model, data, today)
     a = activity_kpis(tasks, derived, today)
     c = constraint_kpis(model["constraints"], data, today)
@@ -1003,6 +1164,8 @@ def compute(model: dict, project: dict, data: dict, today: date) -> dict:
         "tradePerformance": trade_performance(model, data, today),
         "orgPerformance": group_performance(model, data, today, "organisation"),
         "reasonsByTrade": reasons_by_trade(model, data, today),
+        "compliance": cp,
+        "complianceScore": compliance_score(cp, data),
         "facts": facts(model, derived, data, today),
     }
 
@@ -1074,6 +1237,21 @@ def invariants(metrics: dict) -> list[str]:
     rb = metrics.get("reasonsByTrade")
     if rb and sum(r["activities"] for r in rb["rows"]) != rb["activities"]:
         problems.append("reasons by trade: trade rows do not add up to missed activities")
+    cp = metrics.get("compliance")
+    if cp:
+        dr = cp["delayReasons"]
+        if dr["detailed"] + dr["default"] + dr["none"] != dr["total"] or dr["total"] != t.get("delayed"):
+            problems.append("compliance: delay reason kinds do not add up to the delayed activities")
+        for label, s in [("look-ahead " + k, cp["lookahead"][k]) for k in ("owner", "quantity", "trade", "workforce")] + \
+                        [("constraint owners", cp["constraintOwners"]), ("constraint closure", cp["constraintClosure"]), ("progress updates", cp["updates"]), ("delay reasons", dr),
+                         ("actual quantities", cp["actualQuantities"])]:
+            if s:
+                pct_ok("compliance " + label, s["pct"])
+                if s["count"] > s["total"]:
+                    problems.append("compliance %s: count exceeds total" % label)
+    cs = metrics.get("complianceScore")
+    if cs:
+        pct_ok("compliance score", cs["value"])
     f = metrics.get("facts")
     if f and len(f["tasks"]) != t.get("tasks"):
         problems.append("facts tasks and Total Task disagree")
