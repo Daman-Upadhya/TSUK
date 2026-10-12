@@ -1,0 +1,10 @@
+# build output (published to the gh-pages branch by the workflows, never committed to main)
+dist/
+# last-good copy of the live feed, restored in CI by actions/cache
+.cache/
+# local tokens — see tokens.json.example
+tokens.json
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
