@@ -95,13 +95,14 @@ history before its removal on 6 Oct 2026).
   **Compliance**. The open page is kept in the URL hash (`#page=compliance`) with its filters.
 - **Compliance page**: an **overall VisiLean compliance score** out of 100 (a gauge with the
   rating bands Excellent / Good / Needs improvement / Poor / Critical, and a weight × score
-  breakdown), then nine KPIs:
+  breakdown), then ten KPIs:
 
   | KPI | Out of | Weight |
   |---|---|---|
   | Activities with owners | Look-ahead: activities planned to start or finish in the next 6 weeks from next Monday | 10 |
   | Activities with planned quantities | Look-ahead | 10 |
   | Activities with trade assigned | Look-ahead | 10 |
+  | Activities with location assigned | Look-ahead | 10 |
   | Activities with workforce assigned | Look-ahead (`type=workForce`) | 10 |
   | Delayed activities with delay reasons (detailed note or default reason) | Delayed activities | 10 |
   | Constraints with owners | All constraints | 10 |

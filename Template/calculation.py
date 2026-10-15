@@ -51,7 +51,7 @@ The logic is a port of the "Digital Reality - KPIs (Committed)" Power BI semanti
     group_performance()   Committed PPC per trade / organisation for the last complete committed week
     reasons_by_trade()    Reasons for variance of activities that missed a commitment, per trade
     compliance_score()    Overall VisiLean compliance score: weighted Compliance page KPIs, rated
-    compliance()          Compliance page: look-ahead owner / quantity / trade / workforce, delay
+    compliance()          Compliance page: look-ahead owner / quantity / trade / location / workforce, delay
                           reasons, constraint owners, progress updates and actual quantities on
                           last week's commitments
 
@@ -982,7 +982,7 @@ def last_week(today: date) -> tuple[date, date]:
 def compliance(model: dict, derived: dict, data: dict, today: date) -> dict:
     """The Compliance page (Template/scripts/aggregate.js -> compliance() is the filtered twin):
       look-ahead   activities planned to start or finish in the next N weeks (from next Monday)
-                   with an owner, a planned (total) quantity > 0 and a trade
+                   with an owner, a planned (total) quantity > 0, a trade and a location
       delays       delayed activities (MasterTable[Delay]) by the reason on record: a detailed note,
                    only a default reason (a note that is just a listed reason, or a listed reason
                    in the history), or none
@@ -1029,6 +1029,7 @@ def compliance(model: dict, derived: dict, data: dict, today: date) -> dict:
                       "owner": share(look, lambda t: t["owner"]),
                       "quantity": share(look, lambda t: (t["quantity"] or 0) > 0),
                       "trade": share(look, lambda t: t["trade"]),
+                      "location": share(look, lambda t: t["location"]),
                       "workforce": share(look, lambda t: t["plannedWorkforce"]) if has_wf else None},
         "delayReasons": dict(share(delayed, lambda t: t["noteKind"]), **kinds),
         "constraintOwners": cons,
@@ -1242,7 +1243,7 @@ def invariants(metrics: dict) -> list[str]:
         dr = cp["delayReasons"]
         if dr["detailed"] + dr["default"] + dr["none"] != dr["total"] or dr["total"] != t.get("delayed"):
             problems.append("compliance: delay reason kinds do not add up to the delayed activities")
-        for label, s in [("look-ahead " + k, cp["lookahead"][k]) for k in ("owner", "quantity", "trade", "workforce")] + \
+        for label, s in [("look-ahead " + k, cp["lookahead"][k]) for k in ("owner", "quantity", "trade", "location", "workforce")] + \
                         [("constraint owners", cp["constraintOwners"]), ("constraint closure", cp["constraintClosure"]), ("progress updates", cp["updates"]), ("delay reasons", dr),
                          ("actual quantities", cp["actualQuantities"])]:
             if s:

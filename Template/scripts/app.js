@@ -248,6 +248,7 @@
     compliance: [
       { h: 'Activity', cell: function (r) { return nameCell(r.name, actSub(r)); } },
       { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
+      { h: 'Location', cell: function (r) { return textCell(r.location); } },
       { h: 'Owner', cell: function (r) { return textCell(r.owner); } },
       { h: 'Quantity', num: true, cell: function (r) { return el('td', 'num', r.quantity === null || r.quantity === undefined ? '—' : C.fmtNum(r.quantity)); } },
       { h: 'Planned start', num: true, cell: function (r) { return dateCell(r.plannedStart); } },
@@ -1603,18 +1604,21 @@
       items.forEach(function (x) { lg.appendChild(chip(x[0], x[1], x[2], null, x[1] ? x[3] : null)); });
     }
 
-    /* ---- look-ahead: owner, planned quantity, trade ---- */
+    /* ---- look-ahead: owner, planned quantity, trade, location ---- */
     setText('cpLookDesc', 'Activities planned to start or finish in the next ' + LA.weeks.length + ' weeks, ' + laText);
     var noOwner = look('noOwner', 'Look-ahead activities without an owner'), noQty = look('noQuantity', 'Look-ahead activities without a planned quantity'),
-        noTrade = look('noTrade', 'Look-ahead activities without a trade'), noWf = look('noWorkforce', 'Look-ahead activities without a planned workforce');
+        noTrade = look('noTrade', 'Look-ahead activities without a trade'), noLoc = look('noLocation', 'Look-ahead activities without a location'),
+        noWf = look('noWorkforce', 'Look-ahead activities without a planned workforce');
     var lk = document.getElementById('cpLookKpis'); lk.innerHTML = '';
     lk.appendChild(tile('Activities with owners', LA.owner, 'activity', LA.owner.total - LA.owner.count ? noOwner : null));
     lk.appendChild(tile('Activities with planned quantities', LA.quantity, 'activity', LA.quantity.total - LA.quantity.count ? noQty : null));
     lk.appendChild(tile('Activities with trade assigned', LA.trade, 'activity', LA.trade.total - LA.trade.count ? noTrade : null));
+    lk.appendChild(tile('Activities with location assigned', LA.location, 'activity', LA.location.total - LA.location.count ? noLoc : null));
     lk.appendChild(tile('Activities with workforce assigned', WF, 'activity', WF && WF.total - WF.count ? noWf : null));
     setText('cpAssignDesc', plural(LA.activities, 'activity', 'activities') + ' in the look-ahead');
     ensureListBtn('cpAssignDesc', LA.activities ? look('all', 'Look-ahead activities') : null);
     okBars('cpAssign', [{ label: 'Owner', s: LA.owner, pick: noOwner }, { label: 'Planned quantity', s: LA.quantity, pick: noQty }, { label: 'Trade', s: LA.trade, pick: noTrade },
+                        { label: 'Location', s: LA.location, pick: noLoc },
                         { label: 'Planned workforce', s: WF, pick: noWf }],
            'No activities are planned to start or finish in the look-ahead.');
     legend('cpAssignLegend', [['Assigned', null, 's-ok'], ['Missing', null, 's-fail']]);
@@ -1629,7 +1633,7 @@
       var tr = el('tr');
       tr.appendChild(nameCell(weekLabel(w.week), fmtRange(w.start, w.end)));
       tr.appendChild(el('td', 'num', C.fmtNum(w.activities)));
-      tr.appendChild(cell(w.owner)); tr.appendChild(cell(w.quantity)); tr.appendChild(cell(w.trade)); tr.appendChild(cell(w.workforce));
+      tr.appendChild(cell(w.owner)); tr.appendChild(cell(w.quantity)); tr.appendChild(cell(w.trade)); tr.appendChild(cell(w.location)); tr.appendChild(cell(w.workforce));
       if (w.activities) makePick(tr, lister({ type: 'compliance', set: 'look', pred: 'week', start: w.start, end: w.end }, 'Look-ahead activities, ' + weekLabel(w.week), fmtRange(w.start, w.end)));
       wb.appendChild(tr);
     });

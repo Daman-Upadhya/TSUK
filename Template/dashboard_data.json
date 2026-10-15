@@ -46,7 +46,7 @@
     "constraintLag":      { "label": "Avg. Constraint Lag (Days)",     "good": ["<=", 7],   "watch": ["<=", 20], "text": ["≤ 7 days", "8 – 20 days", "> 20 days"] },
     "unlinked":           { "label": "% Unlinked Constraints",         "good": ["<=", 30],  "watch": ["<=", 60], "text": ["≤ 30%", "31 – 60%", "> 60%"] },
     "plannedDuration":    { "label": "Planned Duration - 6 Week Avg.", "good": ["<=", 5],   "watch": ["<=", 10], "text": ["≤ 5 days", "6-10 days", "> 10 days"] },
-    "compliance":         { "label": "Compliance KPIs (all six)",      "good": [">=", 90],  "watch": [">=", 70], "text": ["≥ 90%", "70 – 89%", "< 70%"] }
+    "compliance":         { "label": "Compliance KPIs (all ten)",      "good": [">=", 90],  "watch": [">=", 70], "text": ["≥ 90%", "70 – 89%", "< 70%"] }
   },
 
   "reasons": {
@@ -146,6 +146,7 @@
         ["lookahead.owner", "Activities with owners", 10],
         ["lookahead.quantity", "Activities with planned quantities", 10],
         ["lookahead.trade", "Activities with trade assigned", 10],
+        ["lookahead.location", "Activities with location assigned", 10],
         ["lookahead.workforce", "Activities with workforce assigned", 10],
         ["delayReasons", "Delayed activities with delay reasons", 10],
         ["constraintOwners", "Constraints with owners", 10],

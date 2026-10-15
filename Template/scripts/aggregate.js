@@ -426,12 +426,12 @@
     var weeks = weekSpans(LA.from, LA.to).map(function (s) {
       var rows = look.filter(function (t) { return inRange(inRange(t.ps, LA.from, LA.to) ? t.ps : t.pe, s.start, s.end); });
       return { week: s.week, start: s.start, end: s.end, activities: rows.length,
-               owner: share(rows, function (t) { return t.ow; }), quantity: share(rows, function (t) { return t.q > 0; }), trade: share(rows, function (t) { return t.tr; }),
+               owner: share(rows, function (t) { return t.ow; }), quantity: share(rows, function (t) { return t.q > 0; }), trade: share(rows, function (t) { return t.tr; }), location: share(rows, function (t) { return t.l; }),
                workforce: hasWf ? share(rows, function (t) { return t.wf; }) : null };
     });
     V.compliance = {
       lookahead: { from: LA.from, to: LA.to, activities: look.length, weeks: weeks,
-                   owner: share(look, function (t) { return t.ow; }), quantity: share(look, function (t) { return t.q > 0; }), trade: share(look, function (t) { return t.tr; }),
+                   owner: share(look, function (t) { return t.ow; }), quantity: share(look, function (t) { return t.q > 0; }), trade: share(look, function (t) { return t.tr; }), location: share(look, function (t) { return t.l; }),
                    workforce: hasWf ? share(look, function (t) { return t.wf; }) : null },
       delayReasons: dr,
       constraintOwners: consAll ? share(firsts, function (r) { return r.ow; }) : null,
@@ -545,6 +545,7 @@
         noOwner: function (t) { return !t.ow; },
         noQuantity: function (t) { return !(t.q > 0); },
         noTrade: function (t) { return !t.tr; },
+        noLocation: function (t) { return !t.l; },
         noWorkforce: function (t) { return !t.wf; },
         noActualQuantity: function (t) { return !t.aq; },
         note: function (t) { return (t.nt || 'none') === spec.value; },

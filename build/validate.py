@@ -299,12 +299,13 @@ def _synthetic():
         "overdue owner": ("constraints.overdue.0.owner", "Person A"),
         "unassigned owner": ("constraints.byOwner.1.label", "Unassigned"),
         "completed W37": ("constraints.weeks.9.completed", 1),
-        # compliance: look-ahead = Mon 5 Oct .. Sun 15 Nov (D: owner, quantity 0, trade);
+        # compliance: look-ahead = Mon 5 Oct .. Sun 15 Nov (D: owner, quantity 0, trade, no location);
         # C is the one delayed activity, with a detailed note; last week = 21-27 Sep: C, rescheduled
         "look-ahead activities": ("compliance.lookahead.activities", 1), "look-ahead from": ("compliance.lookahead.from", "2026-10-05"),
         "look-ahead to": ("compliance.lookahead.to", "2026-11-15"),
         "look-ahead owner": ("compliance.lookahead.owner.pct", 100.0), "look-ahead quantity": ("compliance.lookahead.quantity.pct", 0.0),
         "look-ahead trade": ("compliance.lookahead.trade.pct", 100.0),
+        "look-ahead location": ("compliance.lookahead.location.pct", 0.0),
         "delay reasons": ("compliance.delayReasons.pct", 100.0), "detailed notes": ("compliance.delayReasons.detailed", 1),
         "constraint owners": ("compliance.constraintOwners.pct", 66.7),
         # closure: K1 (target 10 Sep, completed) and K2 (target 20 Sep, open) are due by 1 Oct; K3 (20 Oct) is not
@@ -314,12 +315,12 @@ def _synthetic():
         "look-ahead workforce": ("compliance.lookahead.workforce.pct", 100.0),
         "actual quantities: none completed": ("compliance.actualQuantities.total", 0),
         "actual quantities pct": ("compliance.actualQuantities.pct", None),
-        # score: actual quantities (weight 10) has nothing to measure and is left out, so 80 weight is used:
-        # (10x100 + 10x0 + 10x100 + 10x100 + 10x100 + 10x66.7 + 10x50 + 10x100) / 80 = 6167 / 80 = 77.09
-        "compliance score": ("complianceScore.value", 77.09), "compliance rating": ("complianceScore.rating", "Poor"),
-        "score weight used": ("complianceScore.weightUsed", 80.0),
+        # score: actual quantities (weight 10) has nothing to measure and is left out, so 90 weight is used:
+        # (10x100 + 10x0 + 10x100 + 10x0 + 10x100 + 10x100 + 10x66.7 + 10x50 + 10x100) / 90 = 6167 / 90 = 68.52
+        "compliance score": ("complianceScore.value", 68.52), "compliance rating": ("complianceScore.rating", "Critical"),
+        "score weight used": ("complianceScore.weightUsed", 90.0),
         "score missing": ("complianceScore.missing", ["Completed tasks with actual quantities"]),
-        "score points": ("complianceScore.parts.5.points", 6.67),
+        "score points": ("complianceScore.parts.6.points", 6.67),
     }
     # daily feeds: D (look-ahead) has planned workers, given with a lower-case guid; C has an actual
     # quantity but is not complete, so last week has no completed activity to check
@@ -384,7 +385,7 @@ def selftest() -> int:
     cp0 = tasks_only["compliance"]
     check("daily feeds not fetched -> None", cp0["lookahead"]["workforce"] is None and cp0["actualQuantities"] is None)
     check("no constraint feed -> no closure KPI", cp0["constraintClosure"] is None)
-    cs = calc.compliance_score({k: {"pct": 100.0} for k in ("lookahead", "delayReasons")} | {"lookahead": {k: {"pct": 100.0} for k in ("owner", "quantity", "trade", "workforce")}}, data)
+    cs = calc.compliance_score({k: {"pct": 100.0} for k in ("lookahead", "delayReasons")} | {"lookahead": {k: {"pct": 100.0} for k in ("owner", "quantity", "trade", "location", "workforce")}}, data)
     check("compliance score: 100 on every measured KPI is 100, Excellent", (cs["value"], cs["rating"]) == (100.0, "Excellent"), str(cs["value"]))
     check("compliance weights are 10 each", all(w == 10 for _, _, w in data["compliance"]["score"]["weights"]))
     check("compliance score: nothing measured -> None", calc.compliance_score({}, data)["value"] is None)

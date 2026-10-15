@@ -390,13 +390,14 @@ With them gone:
 ### 3.8 Compliance page, 12 Oct
 
 A third tab, **Compliance**, for CIVIL (and every project, since the template is shared). It has
-nine KPIs, each a percentage coloured by `tolerance.compliance` (good 90%+, watch 70–89%):
+ten KPIs, each a percentage coloured by `tolerance.compliance` (good 90%+, watch 70–89%):
 
 | KPI | Population | Counts as compliant |
 |---|---|---|
 | Activities with owners | Activities planned to **start or finish** in the next 6 calendar weeks, from **next Monday** (the look-ahead) | `owner` is set |
 | Activities with planned quantities | Same | planned quantity > 0, read from the first of `compliance.quantityFields` present (`totalQuantity`, `plannedQuantity`, `quantity`) |
 | Activities with trade assigned | Same | `trade` is set |
+| Activities with location assigned | Same | `location` is set |
 | Delayed activities with reasons | Delayed activities (MasterTable[Delay]: Construction, past planned start or finish, not started / finished), whole project | a **detailed note** (a `Note added:` / `Note:` whose text is more than the listed reasons) or a **default reason only** (a note that is just a listed reason, or a listed reason in the history). Both are shown separately |
 | Constraints with owners | Every constraint, any date | `owner` is set |
 | Constraint closure performance | Constraints with a target date **on or before today** | a completion date is set (which is what makes a constraint Closed). A target of today counts as due here, unlike the "overdue" measures on the Constraints page, which start the day after |
@@ -404,7 +405,7 @@ nine KPIs, each a percentage coloured by `tolerance.compliance` (good 90%+, watc
 | Activities with workforce assigned | The look-ahead, as above | `plannedWorkers` > 0 on at least one day in the daily workforce feed (`type=workForce`, `workforceData[]`) |
 | Completed tasks with actual quantities | Activities committed for **last week** that are complete (actual end set) | `dailyActualQuantity` > 0 on at least one day in the daily quantity feed (`type=dailyquantity`, `dailyQuantityData[]`) |
 
-**Overall VisiLean compliance score** (top of the page): the nine KPIs weighted as below
+**Overall VisiLean compliance score** (top of the page): the ten KPIs weighted as below
 (10 each, so equal), out of 100, then rated. Score = Σ(weight × KPI %) ÷ Σ(weights used). A KPI with nothing to measure
 (no feed, or an empty population such as no completed activity last week) is left out and the
 other weights are scaled up to 100, as the Total Score already does. The card names the KPIs
@@ -416,6 +417,7 @@ left out. The score follows the page's filters. Weights and ratings are
 | Activities with owners | 10 |
 | Activities with planned quantities | 10 |
 | Activities with trade assigned | 10 |
+| Activities with location assigned | 10 |
 | Activities with workforce assigned | 10 |
 | Delayed activities with delay reasons | 10 |
 | Constraints with owners | 10 |
