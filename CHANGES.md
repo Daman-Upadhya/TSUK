@@ -404,8 +404,8 @@ nine KPIs, each a percentage coloured by `tolerance.compliance` (good 90%+, watc
 | Activities with workforce assigned | The look-ahead, as above | `plannedWorkers` > 0 on at least one day in the daily workforce feed (`type=workForce`, `workforceData[]`) |
 | Completed tasks with actual quantities | Activities committed for **last week** that are complete (actual end set) | `dailyActualQuantity` > 0 on at least one day in the daily quantity feed (`type=dailyquantity`, `dailyQuantityData[]`) |
 
-**Overall VisiLean compliance score** (top of the page): the nine KPIs weighted as below, out
-of 100, then rated. Score = Σ(weight × KPI %) ÷ Σ(weights used). A KPI with nothing to measure
+**Overall VisiLean compliance score** (top of the page): the nine KPIs weighted as below
+(10 each, so equal), out of 100, then rated. Score = Σ(weight × KPI %) ÷ Σ(weights used). A KPI with nothing to measure
 (no feed, or an empty population such as no completed activity last week) is left out and the
 other weights are scaled up to 100, as the Total Score already does. The card names the KPIs
 left out. The score follows the page's filters. Weights and ratings are
@@ -413,15 +413,15 @@ left out. The score follows the page's filters. Weights and ratings are
 
 | KPI | Weight |
 |---|---|
-| Activities with owners | 15 |
-| Activities with planned quantities | 15 |
+| Activities with owners | 10 |
+| Activities with planned quantities | 10 |
 | Activities with trade assigned | 10 |
 | Activities with workforce assigned | 10 |
-| Delayed activities with delay reasons | 15 |
+| Delayed activities with delay reasons | 10 |
 | Constraints with owners | 10 |
 | Constraint closure performance | 10 |
 | Daily progress update compliance | 10 |
-| Completed tasks with actual quantities | 5 |
+| Completed tasks with actual quantities | 10 |
 
 Ratings: 95–100 Excellent, 90–94 Good, 80–89 Needs improvement, 70–79 Poor, below 70 Critical.
 The score and the points are rounded half-up to two decimals in both `calculation.py` and

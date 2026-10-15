@@ -143,15 +143,15 @@
     "score": {
       "_comment": "Overall VisiLean compliance score: sum of weight x KPI % / sum of the weights used. weights: [path in metrics.compliance, label, weight]; a KPI with nothing to measure (no feed, empty population) is left out and the other weights re-scaled. ratings: [minimum score, label, tone], first match wins.",
       "weights": [
-        ["lookahead.owner", "Activities with owners", 15],
-        ["lookahead.quantity", "Activities with planned quantities", 15],
+        ["lookahead.owner", "Activities with owners", 10],
+        ["lookahead.quantity", "Activities with planned quantities", 10],
         ["lookahead.trade", "Activities with trade assigned", 10],
         ["lookahead.workforce", "Activities with workforce assigned", 10],
-        ["delayReasons", "Delayed activities with delay reasons", 15],
+        ["delayReasons", "Delayed activities with delay reasons", 10],
         ["constraintOwners", "Constraints with owners", 10],
         ["constraintClosure", "Constraint closure performance", 10],
         ["updates", "Daily progress update compliance", 10],
-        ["actualQuantities", "Completed tasks with actual quantities", 5]
+        ["actualQuantities", "Completed tasks with actual quantities", 10]
       ],
       "ratings": [[95, "Excellent", "good"], [90, "Good", "good"], [80, "Needs improvement", "warn"], [70, "Poor", "warn"], [0, "Critical", "bad"]]
     }

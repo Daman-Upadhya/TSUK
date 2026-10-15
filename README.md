@@ -99,15 +99,15 @@ history before its removal on 6 Oct 2026).
 
   | KPI | Out of | Weight |
   |---|---|---|
-  | Activities with owners | Look-ahead: activities planned to start or finish in the next 6 weeks from next Monday | 15 |
-  | Activities with planned quantities | Look-ahead | 15 |
+  | Activities with owners | Look-ahead: activities planned to start or finish in the next 6 weeks from next Monday | 10 |
+  | Activities with planned quantities | Look-ahead | 10 |
   | Activities with trade assigned | Look-ahead | 10 |
   | Activities with workforce assigned | Look-ahead (`type=workForce`) | 10 |
-  | Delayed activities with delay reasons (detailed note or default reason) | Delayed activities | 15 |
+  | Delayed activities with delay reasons (detailed note or default reason) | Delayed activities | 10 |
   | Constraints with owners | All constraints | 10 |
   | Constraint closure performance | Constraints with a target date on or before today | 10 |
   | Daily progress update compliance (start / reschedule / complete in the history) | Activities committed for last week | 10 |
-  | Completed tasks with actual quantities (`type=dailyquantity`) | Last week's commitments that are complete | 5 |
+  | Completed tasks with actual quantities (`type=dailyquantity`) | Last week's commitments that are complete | 10 |
 
   It has trade / location / organisation filters and fixed windows (no date range). Every
   tile, bar and row opens the activities or constraints behind it. A KPI with nothing to

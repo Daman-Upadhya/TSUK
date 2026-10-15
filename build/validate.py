@@ -314,10 +314,10 @@ def _synthetic():
         "look-ahead workforce": ("compliance.lookahead.workforce.pct", 100.0),
         "actual quantities: none completed": ("compliance.actualQuantities.total", 0),
         "actual quantities pct": ("compliance.actualQuantities.pct", None),
-        # score: actual quantities (weight 5) has nothing to measure and is left out, so 95 weight is used:
-        # (15x100 + 15x0 + 10x100 + 10x100 + 15x100 + 10x66.7 + 10x50 + 10x100) / 95 = 7167 / 95 = 75.44
-        "compliance score": ("complianceScore.value", 75.44), "compliance rating": ("complianceScore.rating", "Poor"),
-        "score weight used": ("complianceScore.weightUsed", 95.0),
+        # score: actual quantities (weight 10) has nothing to measure and is left out, so 80 weight is used:
+        # (10x100 + 10x0 + 10x100 + 10x100 + 10x100 + 10x66.7 + 10x50 + 10x100) / 80 = 6167 / 80 = 77.09
+        "compliance score": ("complianceScore.value", 77.09), "compliance rating": ("complianceScore.rating", "Poor"),
+        "score weight used": ("complianceScore.weightUsed", 80.0),
         "score missing": ("complianceScore.missing", ["Completed tasks with actual quantities"]),
         "score points": ("complianceScore.parts.5.points", 6.67),
     }
@@ -386,7 +386,7 @@ def selftest() -> int:
     check("no constraint feed -> no closure KPI", cp0["constraintClosure"] is None)
     cs = calc.compliance_score({k: {"pct": 100.0} for k in ("lookahead", "delayReasons")} | {"lookahead": {k: {"pct": 100.0} for k in ("owner", "quantity", "trade", "workforce")}}, data)
     check("compliance score: 100 on every measured KPI is 100, Excellent", (cs["value"], cs["rating"]) == (100.0, "Excellent"), str(cs["value"]))
-    check("compliance weights add up to 100", sum(w for _, _, w in data["compliance"]["score"]["weights"]) == 100)
+    check("compliance weights are 10 each", all(w == 10 for _, _, w in data["compliance"]["score"]["weights"]))
     check("compliance score: nothing measured -> None", calc.compliance_score({}, data)["value"] is None)
     check("progress updates read from the history", calc._updates("Task 'A' Started late by X", data) == {"Started"})
 
