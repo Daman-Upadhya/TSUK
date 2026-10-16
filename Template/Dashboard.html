@@ -431,10 +431,20 @@ body.drawer-open { overflow: hidden; }
 .drawer-count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .drawer-body { flex: 1; overflow: auto; padding: 0 20px calc(16px + env(safe-area-inset-bottom)); }
 .drawer-body .table-wrap { overflow: visible; }
-.drawer-table th { position: sticky; top: 0; z-index: 1; background: var(--inset); box-shadow: inset 0 -1px 0 var(--line); }
+.drawer-table thead { position: sticky; top: 0; z-index: 1; }
+.drawer-table th { background: var(--inset); }
+.drawer-table thead tr:last-child th { box-shadow: inset 0 -1px 0 var(--line); }
+.drawer-table .th-sort { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.drawer-table .th-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+.drawer-table .sort-ic { color: var(--faint); font-size: 11px; }
+.drawer-table .th-sort.on, .drawer-table .th-sort.on .sort-ic { color: var(--ink); }
+.drawer-table .filter-row th { padding-top: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.drawer-table .filter-row select, .drawer-table .filter-row input { box-sizing: border-box; width: 100%; min-width: 72px; font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); }
+.drawer-table .filter-row select:focus-visible, .drawer-table .filter-row input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .drawer-table td { vertical-align: middle; }
 .drawer-table .cell-name { min-width: 240px; }
 .drawer-table .cell-reasons { max-width: 220px; color: var(--muted); }
+.drawer-table .cell-comments { min-width: 220px; max-width: 340px; }
 @media (max-width: 760px) { .drawer-tools input[type="search"] { font-size: 17.5px; } .drawer-head, .drawer-tools { padding-left: 14px; padding-right: 14px; } .drawer-body { padding-left: 14px; padding-right: 14px; } }
 svg.chart .col-in { fill: var(--on-fill); font-size: 11.5px; font-weight: 600; font-family: var(--font); font-variant-numeric: tabular-nums; pointer-events: none; }
 svg.chart .col-label, svg.chart .line-label, svg.chart .line-label-bg { pointer-events: none; }
@@ -824,6 +834,7 @@ footer code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
   <div class="drawer-tools">
     <input type="search" id="drawerSearch" placeholder="Search by name, trade, organisation, location…" aria-label="Search this list">
     <span class="drawer-count" id="drawerCount"></span>
+    <button class="btn" id="drawerClear" type="button" hidden>Clear filters</button>
     <button class="btn" id="drawerCsv" type="button">Download CSV</button>
   </div>
   <div class="drawer-body">

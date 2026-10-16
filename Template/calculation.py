@@ -12,6 +12,8 @@ The logic is a port of the "Digital Reality - KPIs (Committed)" Power BI semanti
     RowData  taskType filter               normalise() -> data.taskTypes
     MasterTable  Reasons for Variance      _reason()   -> data.reasons.order / .categories
     MasterTable  Reasons Category          _event()    -> data.reasons.events
+    MasterTable  Reasons (comments)        _comment()  -> the note text after 'Note added: '
+    MasterTable  Unplanned_Tasks           _tasks()    -> t['unplanned'] (New Task in its planned week)
     MasterTable  Planned_/Actual_Week-Year week_key()  (ISO week of the end date)
     MasterTable  Planned_PPC               task["plannedPPC"]
     All_Committed_Task  nested feed expanded (data.isAutoCommit, one row per activity),
@@ -74,7 +76,7 @@ from __future__ import annotations
 import math
 import re
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 # --------------------------------------------------------------------------- parsing
 
@@ -102,6 +104,18 @@ def parse_date(value) -> str | None:
         return datetime.fromisoformat(s.replace("Z", "+00:00")).date().isoformat()
     except ValueError:
         return None
+
+
+def _history_date(value) -> str | None:
+    """historyDateTime: epoch ms (read as a UK date) or a dd/mm/yyyy / ISO text date. ISO or None."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool) or (isinstance(value, str) and value.strip().isdigit()):
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Europe/London")
+        except Exception:
+            tz = timezone.utc
+        return datetime.fromtimestamp(float(value) / 1000, tz).date().isoformat()
+    return parse_date(value)
 
 
 def _num(value) -> float | None:
@@ -182,12 +196,17 @@ def _week_spans(today: date, n: int) -> list[tuple[date, date]]:
 
 # --------------------------------------------------------------------------- normalise
 
+def _variance_rules(data: dict) -> list[tuple[str, str]]:
+    """data.reasons.order as (text the history contains, label); a plain string is its own label."""
+    return [(x, x) if isinstance(x, str) else (x[0], x[1]) for x in _get(data, "reasons.order", []) or []]
+
+
 def _reason(history: str, data: dict) -> tuple[str | None, str | None]:
-    """Reasons for Variance: the first listed reason the history text contains (case-sensitive,
-    like Text.Contains), then its category. No reason -> (None, 'Uncategorised')."""
+    """Reasons for Variance: the label of the first rule whose text the history contains
+    (case-sensitive, like Text.Contains), then its category. No reason -> (None, 'Uncategorised')."""
     if history:
-        for r in _get(data, "reasons.order", []) or []:
-            if r in history:
+        for needle, r in _variance_rules(data):
+            if needle in history:
                 for cat, members in (_get(data, "reasons.categories", {}) or {}).items():
                     if r in members:
                         return r, cat
@@ -196,12 +215,26 @@ def _reason(history: str, data: dict) -> tuple[str | None, str | None]:
 
 
 def _event(history: str, data: dict) -> str | None:
-    """Reasons Category: late start / late complete / stopped / warning / rescheduled."""
+    """Reasons Category: late start / complete, stopped, warning, rescheduled, the notes, new task."""
     if history:
         for needle, label in _get(data, "reasons.events", []) or []:
             if needle in history:
                 return label
     return None
+
+
+def _comment(history: str) -> str | None:
+    """Reasons (the comment / detailed reason): the text after the first 'Note added: ', or for a
+    'Note added to task' row the text after the last ': ', trimmed. None when there is none."""
+    if not history:
+        return None
+    if "Note added: " in history:
+        text = history.split("Note added: ", 1)[1]
+    elif "Note added to task" in history:
+        text = history.rsplit(": ", 1)[1] if ": " in history else ""
+    else:
+        return None
+    return text.strip() or None
 
 
 def _updates(history: str, data: dict) -> set:
@@ -221,8 +254,8 @@ def _note_kinds(history: str, data: dict) -> set:
         rest = m.group(1)
         if not rest.strip():
             continue
-        for r in _get(data, "reasons.order", []) or []:
-            rest = rest.replace(r, "")
+        for needle, _ in _variance_rules(data):
+            rest = rest.replace(needle, "")
         out.add("detailed" if re.sub(r"[\W_]+", "", rest) else "default")
     return out
 
@@ -233,6 +266,8 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
     by_guid: "OrderedDict[str, dict]" = OrderedDict()
     excluded: dict[str, int] = {}
     history_rows = 0
+    dated_rows = 0
+    date_field = _get(data, "unplanned.historyDateField", "historyDateTime")
     for r in raw or []:
         if not isinstance(r, dict):
             continue
@@ -277,6 +312,8 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
                 "events": set(),
                 "updates": set(),
                 "notes": set(),
+                "comments": [],
+                "unplanned": False,
             }
             # Planned_PPC: finished in the same ISO week it was planned to finish
             t["plannedPPC"] = bool(t["actualWeek"] and t["actualWeek"] == t["plannedWeek"])
@@ -288,6 +325,15 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
             t["events"].add(event)
         t["updates"] |= _updates(history, data)
         t["notes"] |= _note_kinds(history, data)
+        # Unplanned_Tasks: a "New Task" history row dated in the task's Planned_Week-Year (planned end)
+        hdate = _history_date(r.get(date_field))
+        if hdate:
+            dated_rows += 1
+            if event == "New Task" and week_key(_d(hdate)) == t["plannedWeek"]:
+                t["unplanned"] = True
+        comment = _comment(history)
+        if comment and comment not in t["comments"]:
+            t["comments"].append(comment)
     tasks = list(by_guid.values())
     for t in tasks:
         t["reasons"], t["categories"], t["events"] = sorted(t["reasons"]), sorted(t["categories"]), sorted(t["events"])
@@ -295,6 +341,8 @@ def _tasks(raw: list, data: dict) -> tuple[list[dict], dict]:
         # the delay reason on record: a detailed note wins over a default reason
         t["noteKind"] = "detailed" if "detailed" in t["notes"] else ("default" if t["notes"] or t["reasons"] else None)
         del t["notes"]
+        if not dated_rows:
+            t["unplanned"] = None   # no history dates in the feed: not measurable
     return tasks, {"rows": len(raw or []), "historyRows": history_rows, "excludedByType": excluded}
 
 
@@ -572,6 +620,9 @@ def activity_kpis(tasks: list, derived: dict, today: date) -> dict:
         # !!Avg_Activity_Week: mean tasks per planned week, over weeks that have tasks
         "avgPerWeek": _round(sum(per_week.values()) / len(per_week)) if per_week else None,
         "perWeek": [{"week": k, "count": v} for k, v in sorted(per_week.items())],
+        # Unplanned_Tasks: created in the week they were planned to finish; None without history dates
+        "unplannedCount": sum(1 for t in l6w if t["unplanned"]) if any(t["unplanned"] is not None for t in tasks) else None,
+        "unplannedPct": _pct(sum(1 for t in l6w if t["unplanned"]), len(l6w)) if l6w and any(t["unplanned"] is not None for t in tasks) else None,
     }
 
 
@@ -1077,7 +1128,8 @@ def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
                    ps/pe planned start/end, as/ae actual start/end, pw planned week, d planned
                    duration, rs reasons, cs reason categories, ss standard groups, ev events,
                    dl Delay, dd DelayDays, dk delay kind, due/late the %Activity_Delayed flags,
-                   ow owner, q planned quantity, up progress updates, nt note kind, wf planned workforce,
+                   ow owner, q planned quantity, up progress updates, nt note kind, nc comments (note
+                   text, in feed order), un unplanned (null without history dates), wf planned workforce,
                    aq actual quantity recorded (compliance page; wf / aq null when the feed is off)
       commitments  g guid, cw committed week, ce committed end, ok Custom_CommittedPPC, a auto, ln linked
       constraints  u UniqueID, t title, c category, p priority, ow owner, oo owner organisation, l location,
@@ -1092,7 +1144,7 @@ def facts(model: dict, derived: dict, data: dict, today: date) -> dict:
                       "pw": t["plannedWeek"], "d": t["plannedDuration"],
                       "rs": t["reasons"], "cs": t["categories"], "ss": _standard_groups(t["reasons"], data), "ev": t["events"],
                       "dl": d["delay"], "dd": d["delayDays"], "dk": d["delayKind"], "due": d["dueForPct"], "late": d["delayedForPct"],
-                      "ow": t["owner"], "q": t["quantity"], "up": t["updates"], "nt": t["noteKind"],
+                      "ow": t["owner"], "q": t["quantity"], "up": t["updates"], "nt": t["noteKind"], "nc": t["comments"], "un": t["unplanned"],
                       "wf": t["plannedWorkforce"], "aq": t["actualQuantity"]})
     comms = None if model["commitments"] is None else [
         {"g": c["guid"], "cw": c["committedWeek"], "ce": c["committedEnd"], "ok": c["ppc"], "a": c["auto"], "ln": c["linked"]}

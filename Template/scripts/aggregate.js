@@ -161,8 +161,11 @@
     var durs = tasksL.filter(function (t) { return t.d !== null && t.d !== undefined; }).map(function (t) { return t.d; });
     var perWeek = keyedCount(tasksL, function (t) { return t.pw; });
     var pwKeys = Object.keys(perWeek);
+    var hasUn = facts.tasks.some(function (t) { return t.un !== null && t.un !== undefined; });
+    var unplanned = tasksL.filter(function (t) { return t.un; }).length;
     var activity = {
       tasksInWindow: tasksL.length,
+      unplannedCount: hasUn ? unplanned : null, unplannedPct: hasUn && tasksL.length ? pct(unplanned, tasksL.length) : null,
       delayedPct: tasksL.length ? pct(late.length, due.length) : null, delayedCount: late.length, dueCount: due.length,
       avgDelayDays: tasksL.length ? (delays.length ? roundUp(mean(delays)) : 0) : null,
       avgPlannedDuration: durs.length ? round1(mean(durs)) : null,
@@ -496,7 +499,7 @@
                committedWeek: c ? c.cw : null, committedEnd: c ? c.ce : null, kept: c ? !!c.ok : null,
                delayDays: t ? t.dd : null, delayKind: t ? t.dk : null, duration: t ? t.d : null,
                categories: cats(t), reasons: t ? t.rs : [], events: t ? t.ev : [],
-               owner: t ? t.ow : null, quantity: t ? t.q : null, workforce: t ? t.wf : null, actualQuantity: t ? t.aq : null, updates: (t && t.up) || [], noteKind: t ? t.nt : null };
+               owner: t ? t.ow : null, quantity: t ? t.q : null, workforce: t ? t.wf : null, actualQuantity: t ? t.aq : null, updates: (t && t.up) || [], noteKind: t ? t.nt : null, comments: (t && t.nc) || [], unplanned: t ? t.un : null };
     }
     function byName(x, y) { return (x.name || '').localeCompare(y.name || ''); }
 
@@ -528,6 +531,7 @@
         late: function (t) { return t.due && t.late; },
         delayDays: function (t) { return t.dd !== null && t.dd !== undefined; },
         duration: function (t) { return t.d !== null && t.d !== undefined; },
+        unplanned: function (t) { return !!t.un; },
         reason: function (t) { return t.rs.length > 0 && hit(cats(t), spec.categories); },
         event: function (t) { return spec.event ? t.ev.indexOf(spec.event) >= 0 : t.ev.length > 0; },
         standard: function (t) { return t.ss.indexOf(spec.group) >= 0; }

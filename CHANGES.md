@@ -23,7 +23,7 @@ what the report now does and the decisions behind its numbers.
 | Page | One static page computed at build time | Two pages (Performance, Constraints) with slicers, recomputed in the browser |
 | Headline | Total score card | "Last week PPC" and the 6-week rolling PPC; the score card was removed |
 | PPC basis | Planned PPC | Committed PPC everywhere; planned PPC removed from all visuals |
-| Reasons for variance | English model reasons only, about 40 activities matched | Plus the project's 11 French reasons, 695 activities matched |
+| Reasons for variance | English model reasons only, about 40 activities matched | The TSUK Power Query rules: 18 reasons for variance, 11 reasons categories (see 2.4) |
 | Detail review | None | Every mark opens the activities or constraints behind it, with CSV download |
 | Export | None | "Export PPC review": a printable, sendable report (PDF via print, HTML, CSV) |
 | Branding | "VL" square | VisiLean and client logos (PNG; Tata Steel UK since 12 Oct) |
@@ -61,6 +61,15 @@ All of these live in [calculation.py](Template/calculation.py) and are covered b
 | Row-level facts for the page slicers | `facts()` |
 | Constraint outcome split, average time to resolve, average open age, ageing, by priority / owner / trade | `constraint_kpis()["split"]`, `["avgResolveDays"]`, `["avgOpenAgeDays"]`, `["ageing"]`, `["byPriority"]`, `["byOwner"]`, `["byTrade"]` (6 Oct; owner is the person in the feed's `owner` field, with doubled spaces collapsed, and trade is the constraint's own; the page computes the same in `aggregate.js`, and an all-dates run matches Python on every one) |
 
+**Unplanned activities** (16 Oct; the query's `Unplanned_Tasks`), a fifth tile in "Last six
+weeks" on the Performance page: activities planned to finish in the window (range ∩ window,
+page filters applied) that have a history row whose Reasons Category is New Task (`created` /
+`copied`) and whose `historyDateTime` falls in the ISO week of the planned end
+(Planned_Week-Year). The sub-line gives the share of the window's activities. The date field is
+`unplanned.historyDateField` in `dashboard_data.json`; it is read as epoch ms (UK date) or
+dd/mm/yyyy. If no task row has that date, the tile shows "—" and "No history dates in the task
+feed". The activity CSV has an Unplanned column.
+
 ### 2.3 How the page recomputes under filters
 
 The page is no longer only a renderer. The split is:
@@ -88,27 +97,48 @@ Filter rules, as in the model's relationships:
 
 ### 2.4 Reasons for variance
 
-The project writes its reasons in French in the activity history, as `Note: <reason>` or
-`Note added: <reason>`. They were added to `reasons.order`, `reasons.categories` and
-`reasons.standard` in [dashboard_data.json](Template/dashboard_data.json), ahead of the
-English reasons, so the team's own note wins over an English keyword in a task name.
+Updated 16 Oct to the TSUK Power Query (`Reasons for Variance` and `Reasons Category`). Both
+are a `Text.Contains` chain over `activityHistory`: case-sensitive, first match wins, so the
+order matters (`Safety Incident` is checked before `Safety`, `Approval` before
+`Client change request`). `reasons.order` holds each rule as `[text the history contains, label]`.
+Each label is its own category; `reasons.standard` puts them in the coarser groups.
 
-| Reason (as written in VisiLean) | Category | Standard group |
+| History contains | Reason for variance | Standard group |
 |---|---|---|
-| Erreur de plan | Design | Outstanding Design |
-| Refus HSE | Health and safety | Health & Safety |
-| Manque d'appro | Materials | Materials |
-| Pas assez de ressource | Labour shortfall | Labour / Resources |
-| Predecesseur non accompli | Predecessor incomplete | Predecessor Work |
-| Problème qualité | Quality and rework | Quality & Rework |
-| Trop de coactivité | Space | Access / Space |
-| Intempérie météo | Adverse weather | External / Weather |
-| Durée sous estimé | Labour shortfall | Labour / Resources |
-| BUG system | Others | Other |
-| PLUS RAPIDE | Others | Other |
+| Space | Space | Access / Space |
+| Material | Material | Materials |
+| Equipment | Equipment Unavailable | Plant & Equipment |
+| Manpower | Manpower | Labour / Resources |
+| Predecessor | Predecessor | Predecessor Work |
+| Design | Design | Outstanding Design |
+| External | External | External / Weather |
+| Trade Handover | Trade Handover | Predecessor Work |
+| Approval | Sign off/ Approval | Client / Approvals |
+| Change of Priority | Change of Priority | Planning / Sequencing |
+| Weather | Weather | External / Weather |
+| Unforeseen Circumstances | Unforeseen Circumstances | External / Weather |
+| Safety Incident | Safety Incident | Health & Safety |
+| Awaiting Information/ Specification | Awaiting Information/ Specification | Outstanding Design |
+| Client change request | Approvals | Client / Approvals |
+| Access | Access | Access / Space |
+| Organising/ Planning | Organising/ Planning | Planning / Sequencing |
+| Safety | Safety | Health & Safety |
 
-These mappings are judgement calls. Change any of them in `dashboard_data.json`; no code change
-is needed.
+The query labels `Client change request` "Approvels"; it is spelt "Approvals" here, and the
+leading space in " Sign off/ Approval" is dropped. The standard groups are a judgement call.
+
+Reasons Category (`reasons.events`), in order: `started late` Late Start, `completed late` Late
+Complete, `stopped At` Stopped, `warning by` Warning, `rescheduled by` Rescheduled by,
+`Stoppage note`, `Warning note`, `Reschedule note`, `Note added to task` Note added, `created`
+or `copied` New Task.
+
+Change any of them in `dashboard_data.json`; no code change is needed.
+
+**Comments** (the query's `Reasons` column, the detailed reason): from each history row, the
+text after the first `Note added: `, or for a `Note added to task` row the text after the last
+`: `, trimmed (`calculation._comment()`). An activity keeps every distinct comment in feed
+order (facts key `nc`). The activity lists show the last one with "+n earlier" (all on hover),
+the search box and a text filter match them, and the CSV has them all, separated by ` | `.
 
 The "Reasons for variance by trade" visual leaves out missed activities with no recorded
 reason. The card states how many were left out. In the sample, 122 of 293 missed commitments

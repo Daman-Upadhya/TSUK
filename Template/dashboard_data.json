@@ -50,60 +50,68 @@
   },
 
   "reasons": {
-    "_comment": "MasterTable 'Reasons for Variance': order = the Text.Contains chain over activityHistory (first match wins, case-sensitive); categories = the 'Reasons for Variance1' mapping. events = the 'Reasons Category' column.",
-    "_project": "The project's own reasons for variance, as written in VisiLean (French), come first: they appear in the history as 'Note: <reason>' / 'Note added: <reason>', and a history row also carries the task name, which can contain an English keyword. Each is mapped to the nearest model category below.",
+    "_comment": "MasterTable 'Reasons for Variance': order = the Text.Contains chain over activityHistory, as [text the history contains, label] (first match wins, case-sensitive). categories group the labels for the charts (here each label is its own category). events = the 'Reasons Category' column, the same kind of chain.",
     "order": [
-      "Erreur de plan", "Refus HSE", "Manque d'appro", "Pas assez de ressource", "Predecesseur non accompli", "Problème qualité", "Trop de coactivité", "Intempérie météo", "Durée sous estimé", "BUG system", "PLUS RAPIDE",
-      "Outstanding Design", "Works not instructed", "Equipment Unavailable", "Labour shortfall",
-      "Predecessor incomplete", "Safety non compliance", "Safety issues/stand-downs", "Quality issue Rework",
-      "Quality of installation", "Adverse Weather", "Weather", "Approvals", "Operations", "Resquencing of works",
-      "No access", "Partial access", "Access interrupted", "Late design", "Design change", "Inadequate design",
-      "Awaiting design clarifica", "Scope variation", "On hold' instructions", "Work by others incomplete",
-      "Free issue material", "Material", "Performance/productivity", "Client change request",
-      "Decision to re-sequence", "Contractor Not appointed", "Ahead of Schedule", "Health and Safety",
-      "Under estimation of effort", "Others"
+      ["Space", "Space"], ["Material", "Material"], ["Equipment", "Equipment Unavailable"], ["Manpower", "Manpower"],
+      ["Predecessor", "Predecessor"], ["Design", "Design"], ["External", "External"], ["Trade Handover", "Trade Handover"],
+      ["Approval", "Sign off/ Approval"], ["Change of Priority", "Change of Priority"], ["Weather", "Weather"], ["Unforeseen Circumstances", "Unforeseen Circumstances"],
+      ["Safety Incident", "Safety Incident"], ["Awaiting Information/ Specification", "Awaiting Information/ Specification"], ["Client change request", "Approvals"], ["Access", "Access"],
+      ["Organising/ Planning", "Organising/ Planning"], ["Safety", "Safety"]
     ],
     "categories": {
-      "Space": ["No access", "Access interrupted", "Partial access", "Trop de coactivité"],
+      "Space": ["Space"],
+      "Material": ["Material"],
+      "Equipment Unavailable": ["Equipment Unavailable"],
+      "Manpower": ["Manpower"],
+      "Predecessor": ["Predecessor"],
+      "Design": ["Design"],
+      "External": ["External"],
+      "Trade Handover": ["Trade Handover"],
+      "Sign off/ Approval": ["Sign off/ Approval"],
+      "Change of Priority": ["Change of Priority"],
+      "Weather": ["Weather"],
+      "Unforeseen Circumstances": ["Unforeseen Circumstances"],
+      "Safety Incident": ["Safety Incident"],
+      "Awaiting Information/ Specification": ["Awaiting Information/ Specification"],
       "Approvals": ["Approvals"],
-      "Scope variation": ["Client change request", "Scope variation"],
-      "Adverse weather": ["Adverse Weather", "Weather", "Intempérie météo"],
-      "Health and safety": ["Health and Safety", "Safety non compliance", "Safety issues/stand-downs", "Refus HSE"],
-      "Labour shortfall": ["Labour shortfall", "Under estimation of effort", "Contractor Not appointed", "Performance/productivity", "Pas assez de ressource", "Durée sous estimé"],
-      "Materials": ["Material", "Free issue material", "Manque d'appro"],
-      "Others": ["Ahead of Schedule", "Others", "PLUS RAPIDE", "BUG system"],
-      "Design": ["Outstanding Design", "Design change", "Inadequate design", "Late design", "On hold' instructions", "Awaiting design clarifica", "Erreur de plan"],
-      "Works not instructed": ["Works not instructed"],
-      "Operations": ["Operations", "Decision to re-sequence"],
-      "Equipment": ["Equipment Unavailable"],
-      "Predecessor incomplete": ["Predecessor incomplete", "Work by others incomplete", "Predecesseur non accompli"],
-      "Quality and rework": ["Quality issue Rework", "Quality of installation", "Problème qualité"]
+      "Access": ["Access"],
+      "Organising/ Planning": ["Organising/ Planning"],
+      "Safety": ["Safety"]
     },
     "uncategorised": "Uncategorised",
     "noneLabel": "No reason recorded",
     "topCategories": 8,
-    "_standard": "MasterTable 'Standard Reason': the coarser SWITCH grouping of the raw reason, used beside 'categories'. A reason in no group is 'uncategorised'. The model lists 'Awaiting design clarification' (the full text) which never matches the truncated raw reason; the truncated key is used here so the intent holds.",
+    "_standard": "MasterTable 'Standard Reason': the coarser grouping of the labels above, used beside 'categories'. A label in no group is 'uncategorised'.",
     "standard": {
-      "Outstanding Design": ["Awaiting design clarifica", "Design change", "Inadequate design", "Late design", "Outstanding Design", "Works not instructed", "On hold' instructions", "Erreur de plan"],
-      "Materials": ["Material", "Free issue material", "Manque d'appro"],
-      "Labour / Resources": ["Labour shortfall", "Contractor Not appointed", "Performance/productivity", "Under estimation of effort", "Pas assez de ressource", "Durée sous estimé"],
+      "Outstanding Design": ["Design", "Awaiting Information/ Specification"],
+      "Materials": ["Material"],
+      "Labour / Resources": ["Manpower"],
       "Plant & Equipment": ["Equipment Unavailable"],
-      "Access / Space": ["No access", "Access interrupted", "Partial access", "Trop de coactivité"],
-      "Predecessor Work": ["Predecessor incomplete", "Work by others incomplete", "Predecesseur non accompli"],
-      "Client / Approvals": ["Approvals", "Client change request", "Scope variation"],
-      "Quality & Rework": ["Quality issue Rework", "Quality of installation", "Problème qualité"],
-      "Health & Safety": ["Health and Safety", "Safety issues/stand-downs", "Safety non compliance", "Refus HSE"],
-      "External / Weather": ["Adverse Weather", "Weather", "Intempérie météo"],
-      "Planning / Sequencing": ["Decision to re-sequence", "Operations"],
-      "Other": ["Others", "Ahead of Schedule", "PLUS RAPIDE", "BUG system"]
+      "Access / Space": ["Space", "Access"],
+      "Predecessor Work": ["Predecessor", "Trade Handover"],
+      "Client / Approvals": ["Sign off/ Approval", "Approvals"],
+      "Health & Safety": ["Safety Incident", "Safety"],
+      "External / Weather": ["Weather", "External", "Unforeseen Circumstances"],
+      "Planning / Sequencing": ["Change of Priority", "Organising/ Planning"]
     },
     "events": [
       ["started late", "Late Start"],
       ["completed late", "Late Complete"],
-      ["Stopped", "Stopped"],
+      ["stopped At", "Stopped"],
       ["warning by", "Warning"],
-      ["rescheduled by", "Rescheduled"]
+      ["rescheduled by", "Rescheduled by"],
+      ["Stoppage note", "Stoppage note"],
+      ["Warning note", "Warning note"],
+      ["Reschedule note", "Reschedule note"],
+      ["Note added to task", "Note added"],
+      ["created", "New Task"],
+      ["copied", "New Task"]
     ]
+  },
+
+  "unplanned": {
+    "_comment": "Unplanned_Tasks: an activity whose history has a 'New Task' row (reasons.events) dated in its Planned_Week-Year (the ISO week of its planned end). historyDateField = the history row's date in the task feed (epoch ms or dd/mm/yyyy).",
+    "historyDateField": "historyDateTime"
   },
 
   "constraints": {

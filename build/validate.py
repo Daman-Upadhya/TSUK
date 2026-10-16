@@ -236,7 +236,7 @@ def _synthetic():
         t("A", "Construction", "14/09/2026 00:00:00", "18/09/2026 00:00:00", "14/09/2026 00:00:00", "18/09/2026 00:00:00",
           hist="Task 'A' started on time by X."),
         t("B", "Construction", "14/09/2026 00:00:00", "18/09/2026 00:00:00", "15/09/2026 00:00:00", "23/09/2026 00:00:00",
-          hist="Task 'B' completed late by X. Note added:  Labour shortfall"),
+          hist="Task 'B' completed late by X. Note added:  Manpower"),
         t("C", "Construction", "21/09/2026 00:00:00", "25/09/2026 00:00:00", status="Ready"),
         t("C", "Construction", "21/09/2026 00:00:00", "25/09/2026 00:00:00", status="Ready",
           hist="Task 'C' rescheduled by X. Note added: Crane broke down on site"),
@@ -273,7 +273,7 @@ def _synthetic():
         "before planned start": ("constraints.beforeStartPct", 50.0), "unsuccessful": ("constraints.unsuccessful", 1),
         "category clean-up": ("constraints.byCategory.-1.label", "Material"),
         "total score": ("score.value", 34.0), "score status": ("score.status", "Red"), "remaining score": ("score.remaining", 66.0),
-        "reason category": ("reasons.categories.0.label", "Labour shortfall"),
+        "reason category": ("reasons.categories.0.label", "Manpower"),
         "standard reason": ("reasons.standard.0.label", "Labour / Resources"),
         # Successful Task(C) / UnSuccessful Task(C) / TotalTask: D has no timestamp and is filtered out
         "committed total": ("ppc.committedAllTime.total", 3), "committed kept": ("ppc.committedAllTime.successful", 1),
@@ -374,8 +374,8 @@ def selftest() -> int:
     check("synthetic: json serialisable", json.dumps(s) is not None)
     check("synthetic: invariants", not calc.invariants(s), "; ".join(calc.invariants(s)))
 
-    for hist, want in [("Task 'B' completed late by X. Note added:  Labour shortfall", {"default"}),
-                       ("Note: Labour shortfall - two operatives off sick", {"detailed"}),
+    for hist, want in [("Task 'B' completed late by X. Note added:  Manpower", {"default"}),
+                       ("Note: Manpower - two operatives off sick", {"detailed"}),
                        ("Note added: ", set()), ("Task 'A' started on time by X.", set())]:
         check("note kind of %r" % hist, calc._note_kinds(hist, data) == want, str(calc._note_kinds(hist, data)))
     # C completed on 24 Sep: it is last week's one completed commitment, with an actual quantity
@@ -389,6 +389,29 @@ def selftest() -> int:
     check("compliance score: 100 on every measured KPI is 100, Excellent", (cs["value"], cs["rating"]) == (100.0, "Excellent"), str(cs["value"]))
     check("compliance weights are 10 each", all(w == 10 for _, _, w in data["compliance"]["score"]["weights"]))
     check("compliance score: nothing measured -> None", calc.compliance_score({}, data)["value"] is None)
+    for hist, want in [("Note added: Client change request", ("Approvals", "Approvals")), ("Note: Awaiting Approval", ("Sign off/ Approval", "Sign off/ Approval")),
+                       ("Note: Safety Incident on site", ("Safety Incident", "Safety Incident")), ("Note: Equipment", ("Equipment Unavailable", "Equipment Unavailable")),
+                       ("Task 'A' started on time by X.", (None, "Uncategorised"))]:
+        check("reason for variance of %r" % hist, calc._reason(hist, data) == want, str(calc._reason(hist, data)))
+    for hist, want in [("Task 'C' rescheduled by X.", "Rescheduled by"), ("Task stopped At 10:00", "Stopped"), ("Note added to task 'A'", "Note added"),
+                       ("Task 'A' created by X", "New Task"), ("Task 'A' copied by X", "New Task"), ("Task 'A' started on time by X.", None)]:
+        check("reasons category of %r" % hist, calc._event(hist, data) == want, str(calc._event(hist, data)))
+    for hist, want in [("Task 'B' completed late by X. Note added:  Manpower ", "Manpower"),
+                       ("Note added to task 'A' by X: Crane broke down: waiting for parts", "waiting for parts"),
+                       ("Note added to task 'A' by X", None), ("Note added: ", None), ("Task 'A' started on time by X.", None)]:
+        check("comment of %r" % hist, calc._comment(hist) == want, str(calc._comment(hist)))
+    # Unplanned_Tasks: a New Task row dated in the planned-end week (Mon 21 .. Sun 27 Sep 2026)
+    def u(guid, hist, when):
+        return {"guid": guid, "taskId": guid, "taskName": guid, "taskType": "Construction", "plannedStartDate": "21/09/2026 00:00:00",
+                "plannedEndDate": "25/09/2026 00:00:00", "activityHistory": hist, "historyDateTime": when}
+    un = {t["guid"]: t["unplanned"] for t in calc.normalise({"tasks": [
+        u("U1", "Task 'U1' created by X", "22/09/2026 09:00:00"),          # same week -> unplanned
+        u("U2", "Task 'U2' created by X", "14/09/2026 09:00:00"),          # the week before -> planned
+        u("U3", "Task 'U3' copied by X", 1790150400000),                    # epoch ms, Wed 23 Sep 2026 -> unplanned
+        u("U4", "Task 'U4' started late by X", "22/09/2026 09:00:00"),     # not a New Task row
+        u("U5", "Task 'U5' created by X", None)]}, data)["tasks"]}         # no date on the row
+    check("unplanned tasks", un == {"U1": True, "U2": False, "U3": True, "U4": False, "U5": False}, str(un))
+    check("unplanned: no history dates -> None", calc.normalise({"tasks": [u("U6", "Task created by X", None)]}, data)["tasks"][0]["unplanned"] is None)
     check("progress updates read from the history", calc._updates("Task 'A' Started late by X", data) == {"Started"})
 
     e = calc.compute(calc.normalise({"tasks": []}, data), {"key": "x"}, data, today)

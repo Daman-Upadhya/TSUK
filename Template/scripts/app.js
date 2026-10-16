@@ -215,6 +215,12 @@
     if (bits.length) td.title = bits.join(' · ');
     return td;
   }
+  function commentsCell(r) {
+    var td = el('td', 'cell-comments'), n = r.comments.length;
+    td.appendChild(el('div', null, n ? r.comments[n - 1] : '—'));
+    if (n > 1) { td.title = r.comments.join('\n'); td.appendChild(el('div', 'cell-sub', '+' + (n - 1) + ' earlier')); }
+    return td;
+  }
   function YESNO(v) { return v === null || v === undefined ? null : (v ? 'Yes' : 'No'); }
   var NOTE_WORD = { detailed: 'Detailed note', 'default': 'Default reason only', none: 'No reason' };
   function actSub(r) { return [r.id ? '#' + r.id : null, r.location].filter(Boolean).join(' · '); }
@@ -223,42 +229,45 @@
       { h: 'Activity', cell: function (r) { return nameCell(r.name, actSub(r)); } },
       { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
       { h: 'Organisation', cell: function (r) { return textCell(r.organisation); } },
-      { h: 'Committed week', num: true, cell: function (r) { return el('td', 'num', r.committedWeek ? weekLabel(r.committedWeek) + ' · ' + C.fmtDate(r.committedEnd, true) : '—'); } },
+      { h: 'Committed week', num: true, v: function (r) { return r.committedEnd; }, cell: function (r) { return el('td', 'num', r.committedWeek ? weekLabel(r.committedWeek) + ' · ' + C.fmtDate(r.committedEnd, true) : '—'); } },
       { h: 'Result', cell: function (r) { var td = el('td'); if (r.kept === null) td.textContent = '—'; else td.appendChild(pill(r.kept ? 'Kept' : 'Missed', r.kept ? 'good' : 'bad')); return td; } },
-      { h: 'Planned end', num: true, cell: function (r) { return dateCell(r.plannedEnd); } },
-      { h: 'Actual end', num: true, cell: function (r) { return dateCell(r.actualEnd); } },
+      { h: 'Planned end', num: true, v: function (r) { return r.plannedEnd; }, cell: function (r) { return dateCell(r.plannedEnd); } },
+      { h: 'Actual end', num: true, v: function (r) { return r.actualEnd; }, cell: function (r) { return dateCell(r.actualEnd); } },
       { h: 'Status', cell: function (r) { return statusCell(r.status); } },
-      { h: 'Reasons', cell: reasonsCell }
+      { h: 'Reasons', cell: reasonsCell },
+      { h: 'Comments', textFilter: true, cell: commentsCell }
     ],
     tasks: [
       { h: 'Activity', cell: function (r) { return nameCell(r.name, actSub(r)); } },
       { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
       { h: 'Organisation', cell: function (r) { return textCell(r.organisation); } },
-      { h: 'Planned start', num: true, cell: function (r) { return dateCell(r.plannedStart); } },
-      { h: 'Planned end', num: true, cell: function (r) { return dateCell(r.plannedEnd); } },
-      { h: 'Actual end', num: true, cell: function (r) { return dateCell(r.actualEnd); } },
-      { h: 'Delay', num: true, cell: function (r) {
+      { h: 'Planned start', num: true, v: function (r) { return r.plannedStart; }, cell: function (r) { return dateCell(r.plannedStart); } },
+      { h: 'Planned end', num: true, v: function (r) { return r.plannedEnd; }, cell: function (r) { return dateCell(r.plannedEnd); } },
+      { h: 'Actual end', num: true, v: function (r) { return r.actualEnd; }, cell: function (r) { return dateCell(r.actualEnd); } },
+      { h: 'Delay', num: true, v: function (r) { return r.delayDays; }, cell: function (r) {
           var td = el('td', 'num');
           if (r.delayDays === null || r.delayDays === undefined) td.textContent = '—';
           else { var a = el('span', 'age-chip ' + ageCls(r.delayDays), C.fmtNum(r.delayDays) + ' d'); a.title = r.delayKind || ''; td.appendChild(a); }
           return td; } },
       { h: 'Status', cell: function (r) { return statusCell(r.status); } },
-      { h: 'Reasons', cell: reasonsCell }
+      { h: 'Reasons', cell: reasonsCell },
+      { h: 'Comments', textFilter: true, cell: commentsCell }
     ],
     compliance: [
       { h: 'Activity', cell: function (r) { return nameCell(r.name, actSub(r)); } },
       { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
       { h: 'Location', cell: function (r) { return textCell(r.location); } },
       { h: 'Owner', cell: function (r) { return textCell(r.owner); } },
-      { h: 'Quantity', num: true, cell: function (r) { return el('td', 'num', r.quantity === null || r.quantity === undefined ? '—' : C.fmtNum(r.quantity)); } },
-      { h: 'Planned start', num: true, cell: function (r) { return dateCell(r.plannedStart); } },
-      { h: 'Planned end', num: true, cell: function (r) { return dateCell(r.plannedEnd); } },
-      { h: 'Delay', num: true, cell: function (r) {
+      { h: 'Quantity', num: true, v: function (r) { return r.quantity; }, cell: function (r) { return el('td', 'num', r.quantity === null || r.quantity === undefined ? '—' : C.fmtNum(r.quantity)); } },
+      { h: 'Planned start', num: true, v: function (r) { return r.plannedStart; }, cell: function (r) { return dateCell(r.plannedStart); } },
+      { h: 'Planned end', num: true, v: function (r) { return r.plannedEnd; }, cell: function (r) { return dateCell(r.plannedEnd); } },
+      { h: 'Delay', num: true, v: function (r) { return r.delayDays; }, cell: function (r) {
           var td = el('td', 'num');
           if (r.delayDays === null || r.delayDays === undefined) td.textContent = '—';
           else td.appendChild(el('span', 'age-chip ' + ageCls(r.delayDays), C.fmtNum(r.delayDays) + ' d'));
           return td; } },
       { h: 'Delay reason', cell: function (r) { return textCell(NOTE_WORD[r.noteKind || 'none']); } },
+      { h: 'Comments', textFilter: true, cell: commentsCell },
       { h: 'Updates', cell: function (r) { return textCell(r.updates.join(', ')); } },
       { h: 'Workforce', cell: function (r) { return textCell(YESNO(r.workforce)); } },
       { h: 'Actual qty', cell: function (r) { return textCell(YESNO(r.actualQuantity)); } },
@@ -271,9 +280,9 @@
       { h: 'Owner organisation', cell: function (r) { return textCell(r.ownerOrganisation); } },
       { h: 'Trade', cell: function (r) { return textCell(r.trade); } },
       { h: 'Status', cell: function (r) { return textCell(r.status); } },
-      { h: 'Target', num: true, cell: function (r) { return dateCell(r.target); } },
-      { h: 'Completed', num: true, cell: function (r) { return dateCell(r.completion); } },
-      { h: 'Overdue / lag', num: true, cell: function (r) {
+      { h: 'Target', num: true, v: function (r) { return r.target; }, cell: function (r) { return dateCell(r.target); } },
+      { h: 'Completed', num: true, v: function (r) { return r.completion; }, cell: function (r) { return dateCell(r.completion); } },
+      { h: 'Overdue / lag', num: true, v: function (r) { return r.overdueDays !== null ? r.overdueDays : r.lagDays; }, cell: function (r) {
           var td = el('td', 'num');
           if (r.overdueDays !== null) td.appendChild(el('span', 'age-chip ' + ageCls(r.overdueDays), C.fmtNum(r.overdueDays) + ' d overdue'));
           else if (r.lagDays !== null) td.appendChild(el('span', r.lagDays > 0 ? 'tone-text-bad' : 'tone-text-good', (r.lagDays > 0 ? '+' : '') + C.fmtNum(r.lagDays) + ' d'));
@@ -287,29 +296,97 @@
                ['Committed week', 'committedWeek'], ['Committed end', 'committedEnd'], ['Result', function (r) { return r.kept === null ? '' : (r.kept ? 'Kept' : 'Missed'); }],
                ['Planned duration', 'duration'], ['Delay days', 'delayDays'], ['Delay type', 'delayKind'],
                ['Reason categories', function (r) { return r.categories.join('; '); }], ['Reasons', function (r) { return r.reasons.join('; '); }],
-               ['Events', function (r) { return r.events.join('; '); }], ['Owner', 'owner'], ['Planned quantity', 'quantity'],
+               ['Events', function (r) { return r.events.join('; '); }], ['Comments', function (r) { return r.comments.join(' | '); }], ['Owner', 'owner'], ['Planned quantity', 'quantity'],
                ['Delay reason', function (r) { return NOTE_WORD[r.noteKind || 'none']; }], ['Progress updates', function (r) { return r.updates.join('; '); }],
-               ['Planned workforce', function (r) { return YESNO(r.workforce); }], ['Actual quantity recorded', function (r) { return YESNO(r.actualQuantity); }]],
+               ['Unplanned', function (r) { return YESNO(r.unplanned); }], ['Planned workforce', function (r) { return YESNO(r.workforce); }], ['Actual quantity recorded', function (r) { return YESNO(r.actualQuantity); }]],
     constraint: [['Constraint ID', 'id'], ['Constraint', 'title'], ['Category', 'category'], ['Priority', 'priority'], ['Owner', 'owner'], ['Owner organisation', 'ownerOrganisation'], ['Trade', 'trade'],
                  ['Location', 'location'], ['Status', 'status'], ['Created', 'created'], ['Target', 'target'], ['Committed', 'commitment'], ['Completed', 'completion'],
                  ['Overdue days', 'overdueDays'], ['Lag days', 'lagDays'], ['Linked activities', function (r) { return r.activities.join('; '); }]]
   };
   function rowText(r) {
-    return [r.name, r.id, r.title, r.trade, r.organisation, r.location, r.status, r.category, r.owner, (r.activities || []).join(' '), (r.categories || []).join(' ')]
+    return [r.name, r.id, r.title, r.trade, r.organisation, r.location, r.status, r.category, r.owner, (r.activities || []).join(' '), (r.categories || []).join(' '), (r.comments || []).join(' ')]
       .filter(Boolean).join(' ').toLowerCase();
+  }
+  /* per-column sort and filter. A column sorts by c.v(r) when it has one (numbers, ISO dates),
+     else by the text shown; filters match the text shown. Blanks ('—') sort last either way. */
+  var FILTER_SELECT_MAX = 30;
+  function cellText(td) {
+    return (td.children.length ? Array.prototype.map.call(td.children, function (x) { return x.textContent; }).join(' ') : td.textContent).trim();
+  }
+  function sortKey(e, j) {
+    var c = DR.cols[j], v = c.v ? c.v(e.r) : e.t[j];
+    return v === null || v === undefined || v === '' || v === '—' ? null : v;
   }
   function drawerRows() {
     var q = document.getElementById('drawerSearch').value.trim().toLowerCase();
-    return q ? DR.rows.filter(function (r) { return rowText(r).indexOf(q) >= 0; }) : DR.rows;
+    var list = DR.cache.filter(function (e) {
+      if (q && rowText(e.r).indexOf(q) < 0) return false;
+      return DR.f.every(function (f, j) {
+        if (!f) return true;
+        return DR.fSel[j] ? e.t[j] === f : e.t[j].toLowerCase().indexOf(f.toLowerCase()) >= 0;
+      });
+    });
+    var j = DR.sort.col, dir = DR.sort.dir;
+    if (j >= 0) list.sort(function (x, y) {
+      var a = sortKey(x, j), b = sortKey(y, j);
+      if (a === null || b === null) return a === b ? x.i - y.i : (a === null ? 1 : -1);
+      var d = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+      return d * dir || x.i - y.i;
+    });
+    return list.map(function (e) { return e.r; });
+  }
+  function buildDrawerHead() {
+    var head = document.getElementById('drawerHead');
+    head.innerHTML = '';
+    var tr = el('tr'), fr = el('tr', 'filter-row');
+    DR.cols.forEach(function (c, j) {
+      var th = el('th', c.num ? 'num' : null), b = el('button', 'th-sort');
+      b.type = 'button'; b.title = 'Sort by ' + c.h.toLowerCase();
+      b.appendChild(document.createTextNode(c.h)); b.appendChild(el('span', 'sort-ic', '↕'));
+      b.addEventListener('click', function () {
+        if (DR.sort.col !== j) DR.sort = { col: j, dir: 1 };
+        else if (DR.sort.dir === 1) DR.sort.dir = -1;
+        else DR.sort = { col: -1, dir: 1 };
+        renderDrawer();
+      });
+      th.appendChild(b); tr.appendChild(th);
+      var vals = {};
+      DR.cache.forEach(function (e) { vals[e.t[j]] = 1; });
+      var keys = Object.keys(vals), fth = el('th'), ctl;
+      DR.fSel[j] = j > 0 && !c.textFilter && keys.length <= FILTER_SELECT_MAX;   /* the name column and free text get a text box */
+      if (DR.fSel[j]) {
+        ctl = el('select');
+        ctl.appendChild(new Option('All', ''));
+        keys.sort(function (a, b) { return a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b, undefined, { numeric: true }); })
+          .forEach(function (k) { ctl.appendChild(new Option(k === '—' ? '(Blank)' : k, k)); });
+        ctl.addEventListener('change', function () { DR.f[j] = ctl.value; renderDrawer(); });
+      } else {
+        ctl = el('input'); ctl.type = 'search'; ctl.placeholder = 'Filter';
+        ctl.addEventListener('input', function () { DR.f[j] = ctl.value.trim(); renderDrawer(); });
+      }
+      ctl.setAttribute('aria-label', 'Filter ' + c.h.toLowerCase());
+      fth.appendChild(ctl); fr.appendChild(fth);
+    });
+    head.appendChild(tr); head.appendChild(fr);
+  }
+  function clearDrawerFilters() {
+    DR.f = DR.cols.map(function () { return ''; });
+    Array.prototype.forEach.call(document.querySelectorAll('#drawerHead .filter-row select, #drawerHead .filter-row input'), function (x) { x.value = ''; });
+    document.getElementById('drawerSearch').value = '';
+    renderDrawer();
   }
   function renderDrawer() {
     var rows = drawerRows(), noun = DR.kind === 'constraint' ? 'constraint' : 'activity', nouns = DR.kind === 'constraint' ? 'constraints' : 'activities';
-    var head = document.getElementById('drawerHead'), body = document.getElementById('drawerBody');
-    head.innerHTML = ''; body.innerHTML = '';
-    var tr = el('tr');
-    DR.cols.forEach(function (c) { tr.appendChild(el('th', c.num ? 'num' : null, c.h)); });
-    head.appendChild(tr);
-    if (!rows.length) emptyRow(body, DR.cols.length, DR.rows.length ? 'No ' + noun + ' in this list matches "' + document.getElementById('drawerSearch').value + '".' : 'No ' + nouns + ' behind this mark in the current filters.');
+    var body = document.getElementById('drawerBody');
+    body.innerHTML = '';
+    Array.prototype.forEach.call(document.querySelectorAll('#drawerHead .th-sort'), function (b, j) {
+      var on = DR.sort.col === j;
+      b.parentNode.setAttribute('aria-sort', on ? (DR.sort.dir === 1 ? 'ascending' : 'descending') : 'none');
+      b.classList.toggle('on', on);
+      b.lastChild.textContent = on ? (DR.sort.dir === 1 ? '↑' : '↓') : '↕';
+    });
+    document.getElementById('drawerClear').hidden = !(document.getElementById('drawerSearch').value.trim() || DR.f.some(Boolean));
+    if (!rows.length) emptyRow(body, DR.cols.length, DR.rows.length ? 'No ' + noun + ' in this list matches the search and column filters.' : 'No ' + nouns + ' behind this mark in the current filters.');
     rows.slice(0, DRAWER_LIMIT).forEach(function (r) {
       var row = el('tr');
       DR.cols.forEach(function (c) { row.appendChild(c.cell(r)); });
@@ -328,6 +405,9 @@
     var kind = spec.type === 'constraints' ? 'constraint' : 'activity';
     DR = { rows: rows, kind: kind, title: title, opener: opener || document.activeElement,
            cols: COLS[spec.type === 'constraints' || spec.type === 'compliance' || spec.type === 'tasks' ? spec.type : 'commits'], csv: CSV[kind] };
+    DR.cache = rows.map(function (r, i) { return { r: r, i: i, t: DR.cols.map(function (c) { return cellText(c.cell(r)); }) }; });
+    DR.sort = { col: -1, dir: 1 }; DR.f = DR.cols.map(function () { return ''; }); DR.fSel = [];
+    buildDrawerHead();
     setText('drawerEyebrow', kind === 'constraint' ? 'Constraints' : 'Activities');
     setText('drawerTitle', title);
     setText('drawerSub', sub || '');
@@ -369,6 +449,7 @@
     document.getElementById('drawerScrim').addEventListener('click', closeDrawer);
     document.getElementById('drawerSearch').addEventListener('input', renderDrawer);
     document.getElementById('drawerCsv').addEventListener('click', downloadCsv);
+    document.getElementById('drawerClear').addEventListener('click', clearDrawerFilters);
     document.addEventListener('keydown', function (e) {
       if (d.hidden) return;
       if (e.key === 'Escape') { e.stopPropagation(); closeDrawer(); return; }
@@ -1158,7 +1239,12 @@
       { label: 'Avg. planned duration', value: fmtDays(A6.avgPlannedDuration), tone: TN.plannedDuration, sub: 'Planned working days per activity',
         pick: A6.tasksInWindow ? lister({ type: 'tasks', set: 'l6w', pred: 'duration' }, 'Activities planned to finish in the window', win) : null },
       { label: 'Weekly planned activities', value: C.fmtNum(A6.avgPerWeek), tone: TN.weeklyPlanned, sub: 'Mean number of activities planned to finish per week',
-        pick: A6.tasksInWindow ? lister({ type: 'tasks', set: 'l6w', pred: 'all' }, 'Activities planned to finish in the window', win) : null }
+        pick: A6.tasksInWindow ? lister({ type: 'tasks', set: 'l6w', pred: 'all' }, 'Activities planned to finish in the window', win) : null },
+      { label: 'Unplanned activities', value: A6.unplannedCount === null ? '—' : C.fmtNum(A6.unplannedCount),
+        sub: A6.unplannedCount === null ? 'No history dates in the task feed'
+           : (A6.unplannedPct === null ? 'No activities planned to finish in the window' : C.fmtPct(A6.unplannedPct) + ' of the activities planned to finish in the window'),
+        title: 'Created (a New Task history entry) in the same week they were planned to finish',
+        pick: A6.unplannedCount ? lister({ type: 'tasks', set: 'l6w', pred: 'unplanned' }, 'Unplanned activities', win + ' · created in the week they were planned to finish') : null }
     ];
     var kp = document.getElementById('kpis'); kp.innerHTML = '';
     tiles.forEach(function (d) { kp.appendChild(kpiTile(d)); });
