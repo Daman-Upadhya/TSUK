@@ -155,6 +155,24 @@
     var committedL6W = commsL ? block(citems(commsL)) : null;
     var committedAll = comms ? block(citems(comms)) : null;
 
+    /* ---- committed activities in range ∩ window, each with its last commitment there:
+            started (actual start, no actual end), not started (no actual start), stopped (status),
+            late complete (ISO week of the actual end after the committed week) ---- */
+    var cst = null;
+    if (commsL) {
+      var lastC = {};
+      commsL.forEach(function (c) { if (byGuid[c.g] && (!lastC[c.g] || c.ce > lastC[c.g].ce)) lastC[c.g] = c; });
+      var CST = {
+        started: function (t) { return !!t.as && !t.ae; },
+        notStarted: function (t) { return !t.as; },
+        stopped: function (t) { return t.st === 'Stopped'; },
+        lateComplete: function (t, c) { return !!t.ae && isoWeek(t.ae) > c.cw; }
+      };
+      var pairs = Object.keys(lastC).map(function (g) { return { t: byGuid[g], c: lastC[g] }; });
+      cst = { activities: pairs.length, pairs: pairs, preds: CST };
+      Object.keys(CST).forEach(function (k) { cst[k] = pairs.filter(function (p) { return CST[k](p.t, p.c); }).length; });
+    }
+
     /* ---- activity measures over tasks with plannedEndDate in range ∩ window ---- */
     var due = tasksL.filter(function (t) { return t.due; }), late = due.filter(function (t) { return t.late; });
     var delays = tasksL.filter(function (t) { return t.dd !== null && t.dd !== undefined; }).map(function (t) { return t.dd; });
@@ -373,10 +391,11 @@
       feeds: { committed: !!facts.commitments, constraints: !!facts.constraints },
       weeks: weeks, running: running, committed: committedL6W, committedAll: committedAll,
       commitmentRows: comms ? comms.length : null,
+      commitStatus: cst ? { activities: cst.activities, started: cst.started, notStarted: cst.notStarted, stopped: cst.stopped, lateComplete: cst.lateComplete } : null,
       activity: activity, breakdown: breakdown, tradePerformance: tp, orgPerformance: op, reasonsByTrade: rb, reasons: reasons,
       statusCounts: statusCounts, totals: totals, delayed: delayed, constraints: constraints,
       /* the filtered sets behind every measure, for records() */
-      sets: { tasksA: tasksA, tasksR: tasksR, tasksL: tasksL, comms: comms, commsL: commsL, cons: cons, consL: consL, byGuid: byGuid, today: today, UN: UN },
+      sets: { tasksA: tasksA, tasksR: tasksR, tasksL: tasksL, comms: comms, commsL: commsL, cons: cons, consL: consL, cst: cst, byGuid: byGuid, today: today, UN: UN },
       tones: {
         lastWeek: rag(tp && tp.overall ? tp.overall.pct : null, tol.ppc),
         ppcCommitted: rag(committedL6W ? committedL6W.pct : null, tol.ppc), ppcRunning: rag(running, tol.ppc),
@@ -502,6 +521,14 @@
                owner: t ? t.ow : null, quantity: t ? t.q : null, workforce: t ? t.wf : null, actualQuantity: t ? t.aq : null, updates: (t && t.up) || [], noteKind: t ? t.nt : null, comments: (t && t.nc) || [], unplanned: t ? t.un : null };
     }
     function byName(x, y) { return (x.name || '').localeCompare(y.name || ''); }
+
+    if (spec.type === 'commitStatus') {
+      if (!X.cst) return [];
+      var CP0 = X.cst.preds[spec.pred];
+      return X.cst.pairs.filter(function (p) { return !CP0 || CP0(p.t, p.c); }).map(function (p) { return act(p.t, p.c); }).sort(function (x, y) {
+        return (x.committedEnd || '').localeCompare(y.committedEnd || '') || (x.trade || '').localeCompare(y.trade || '') || byName(x, y);
+      });
+    }
 
     if (spec.type === 'commits' || spec.type === 'missed') {
       var src = (spec.l6w ? X.commsL : X.comms) || [], seen = {}, out = [];

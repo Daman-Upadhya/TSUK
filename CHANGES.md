@@ -70,6 +70,21 @@ page filters applied) that have a history row whose Reasons Category is New Task
 dd/mm/yyyy. If no task row has that date, the tile shows "—" and "No history dates in the task
 feed". The activity CSV has an Unplanned column.
 
+**Committed activities, last six weeks** (16 Oct), a row of four tiles under "Last six weeks"
+on the Performance page. Population: the distinct activities committed in the range ∩ window
+(page filters applied), each judged against its **last** commitment in the window.
+
+| Tile | Counts as |
+|---|---|
+| Started | actual start set, no actual end |
+| Not started | no actual start |
+| Stopped | status is `Stopped` |
+| Late complete | actual end set, and its ISO week is after the committed week |
+
+Started and Stopped can overlap (a stopped activity has usually started). Each tile gives its
+share of the committed activities and opens the list behind it. Computed in the page only
+(`aggregate.js`, `commitStatus`), not in `build.json`.
+
 ### 2.3 How the page recomputes under filters
 
 The page is no longer only a renderer. The split is:

@@ -1249,6 +1249,22 @@
     var kp = document.getElementById('kpis'); kp.innerHTML = '';
     tiles.forEach(function (d) { kp.appendChild(kpiTile(d)); });
 
+    /* ---- committed activities by progress: started, not started, stopped, late complete ---- */
+    var CS = V.commitStatus, csk = document.getElementById('cstKpis'); csk.innerHTML = '';
+    setText('cstDesc', !hasCommitted ? 'no commitment feed'
+      : (!V.l6w.valid ? 'The selected range does not overlap the last six weeks.'
+        : win + ' · ' + plural(CS.activities, 'committed activity', 'committed activities') + ', each at its last commitment in the window'));
+    [['Started', 'started', 'Actual start recorded, not yet finished'],
+     ['Not started', 'notStarted', 'No actual start recorded'],
+     ['Stopped', 'stopped', 'Status is Stopped'],
+     ['Late complete', 'lateComplete', 'Finished in a later week than the committed week']].forEach(function (k) {
+      var n = CS ? CS[k[1]] : null;
+      csk.appendChild(kpiTile({
+        label: k[0], value: n === null ? '—' : C.fmtNum(n),
+        sub: n === null ? (hasCommitted ? 'No committed activities in the window' : 'No commitment feed is configured') : k[2] + (CS.activities ? ' · ' + C.fmtPct(Math.round(n / CS.activities * 1000) / 10) : ''),
+        pick: n ? lister({ type: 'commitStatus', pred: k[1] }, 'Committed activities: ' + k[0].toLowerCase(), win) : null }));
+    });
+
     /* ---- performance, last committed week, by trade (default) or organisation:
             summary, tiers, the worst 8 as bars, the rest as chips ---- */
     function drawPerformance() {
