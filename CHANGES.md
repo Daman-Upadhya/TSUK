@@ -509,6 +509,27 @@ feeds, if one of them fails, the whole refresh falls back to the last good copy.
 - The Power BI model name ("Digital Reality - KPIs (Committed)") is left as it is in the docs
   and code comments: it names the model the logic was ported from.
 
+### 3.10 Refresh button and last refresh, 21 Oct
+
+The app bar of a project page has a **Refresh** button and the status of the last refresh.
+
+- **Refresh** opens the project's daily workflow, `refresh-<CODE>.yml`, on GitHub in a new tab.
+  Press **Run workflow** there. This needs a GitHub account with write access to the
+  repository; a static page cannot hold a token, so the run cannot start from the page itself.
+  The page is republished a few minutes after the run finishes.
+- **Status line** (wide screens): the last run of that workflow, read from the public GitHub API
+  without a token: "Last refresh <time>" (green), "Refresh running since <time>" (pulsing, links
+  to the run), or "Last refresh failed, <time>" (red, links to the run). While a run is going it
+  checks again every 60 s, only while the tab is visible (the API allows 60 calls an hour per
+  visitor without a token). If GitHub does not answer (private repository, rate limit, offline)
+  the line is hidden; "Data as of" still shows the data time.
+- **Reload** appears when a successful run finished after the page was built.
+- The build writes `meta.refresh = {repo, workflow}`: the repository from `GITHUB_REPOSITORY` in
+  Actions, or the `origin` remote locally; `null` (no button) when there is no
+  `.github/workflows/refresh-<CODE>.yml`. `build.build.refresh_target()`.
+- `validate.py` used to reject any `fetch(` in a page. A page may now call fetch only if
+  `api.github.com` and `github.com` are the only web hosts it names.
+
 ## 4. Export PPC review
 
 The button builds a standalone report for the current range and filters, and opens it in a

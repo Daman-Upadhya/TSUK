@@ -139,9 +139,16 @@ def scan_page(path, r: Report, extra_forbidden):
     for s in extra_forbidden:
         if s and s.lower() in low:
             r.fail("%s contains forbidden string %r" % (rel, s[:16]))
-    for needle in ("src=\"http", "href=\"http", "@import", "fetch(", "XMLHttpRequest"):
+    for needle in ("src=\"http", "href=\"http", "@import", "XMLHttpRequest"):
         if needle in page:
             r.fail("%s has an external reference or network call (%s); pages must be self-contained" % (rel, needle))
+    # the one network call allowed: the Refresh status line reads the workflow's last run from
+    # the public GitHub API. A page that calls fetch may name no other web host.
+    if "fetch(" in page:
+        hosts = {h.lower() for h in re.findall(r"https?://([A-Za-z0-9.-]+)", page)} - {"www.w3.org"}
+        other = sorted(hosts - {"api.github.com", "github.com"})
+        if other:
+            r.fail("%s calls fetch and names %s; only api.github.com / github.com are allowed" % (rel, ", ".join(other)))
     if 'id="data"' not in page:
         r.fail("%s has no embedded data element" % rel)
     return page

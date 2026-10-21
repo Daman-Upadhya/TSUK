@@ -93,6 +93,10 @@ history before its removal on 6 Oct 2026).
   (everything below except constraints), **Constraints** (all constraint KPIs, status,
   category, target-week trend and the overdue list; the tab shows how many are overdue) and
   **Compliance**. The open page is kept in the URL hash (`#page=compliance`) with its filters.
+- **Refresh** (app bar): opens the project's `refresh-<CODE>.yml` workflow on GitHub, where
+  someone with write access presses **Run workflow**. Beside it, the last run's time and status
+  from the GitHub API (public repository only), and a **Reload** button once a newer run has
+  finished. See CHANGES.md 3.10.
 - **Compliance page**: an **overall VisiLean compliance score** out of 100 (a gauge with the
   rating bands Excellent / Good / Needs improvement / Poor / Critical, and a weight × score
   breakdown), then ten KPIs:

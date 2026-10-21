@@ -1019,12 +1019,61 @@
     try { history.replaceState(null, '', next); } catch (e) { /* file:// in some browsers */ }
   }
 
+  /* ---------- Refresh: the button opens the project's daily workflow on GitHub (a page cannot
+     hold a token, so the run is started there by someone with write access); the status line
+     reads the last run of that workflow from the public GitHub API, no token. Any API error
+     (private repository, rate limit, offline) just hides the status line. ---------- */
+  var RUN_POLL_MS = 60000;
+  function initRefresh(meta) {
+    var R = meta && meta.refresh, btn = document.getElementById('refreshBtn');
+    if (!R || !R.repo || !R.workflow || !btn) return;
+    var page = 'https://github.com/' + R.repo + '/actions/workflows/' + R.workflow;
+    var api = 'https://api.github.com/repos/' + R.repo + '/actions/workflows/' + encodeURIComponent(R.workflow) + '/runs?per_page=1';
+    var line = document.getElementById('lastRun'), reload = document.getElementById('reloadBtn'), timer = null;
+    btn.hidden = false;
+    btn.addEventListener('click', function () { window.open(page, '_blank', 'noopener'); });
+    reload.addEventListener('click', function () { location.reload(); });
+
+    function show(dotCls, text, href) {
+      line.innerHTML = '';
+      line.appendChild(el('span', 'run-dot ' + dotCls));
+      if (href) { var a = el('a', null, text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; line.appendChild(a); }
+      else line.appendChild(el('span', null, text));
+      line.hidden = false;
+    }
+    function check() {
+      timer = null;
+      window.fetch(api, { headers: { Accept: 'application/vnd.github+json' } })
+        .then(function (r) { if (!r.ok) throw new Error('GitHub API ' + r.status); return r.json(); })
+        .then(function (j) {
+          var run = (j.workflow_runs || [])[0];
+          if (!run) { line.hidden = true; return; }
+          var started = run.run_started_at || run.created_at, ended = run.updated_at;
+          if (run.status !== 'completed') {
+            show('running', 'Refresh running since ' + fmtDateTime(started), run.html_url);
+            if (!document.hidden) timer = setTimeout(check, RUN_POLL_MS);
+            return;
+          }
+          if (run.conclusion === 'success') show('good', 'Last refresh ' + fmtDateTime(ended));
+          else show('bad', 'Last refresh ' + ({ failure: 'failed', cancelled: 'cancelled', timed_out: 'timed out' }[run.conclusion] || 'did not finish') + ', ' + fmtDateTime(ended), run.html_url);
+          /* a run finished after this page was built: GitHub Pages publishes about a minute later */
+          reload.hidden = !(run.conclusion === 'success' && meta.generatedAt && new Date(ended) > new Date(meta.generatedAt));
+          if (!reload.hidden) reload.title = 'A newer refresh finished at ' + fmtDateTime(ended) + '. Reload to see it (allow a minute for GitHub Pages).';
+        })
+        .catch(function () { line.hidden = true; });
+    }
+    /* only poll while the tab is visible: unauthenticated calls are limited to 60 an hour */
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && !timer) check(); });
+    check();
+  }
+
   /* ========================================================== project page */
   function renderProject() {
     var meta = D.meta, P = D.project, M = D.metrics, data = D.data || {};
     renderBanner(meta);
     var asof = document.getElementById('asof');
     if (asof) asof.textContent = M ? 'Data as of ' + fmtDateTime(meta.dataAsOf || meta.generatedAt) : 'No data yet';
+    initRefresh(meta);
 
     /* project status beside the name in the app bar (the facts strip is gone) */
     var stHost = document.getElementById('projStatus');

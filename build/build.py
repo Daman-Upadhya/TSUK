@@ -234,6 +234,31 @@ def png_data_uri(path: str) -> str:
     return "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
 
 
+def github_repo() -> str | None:
+    """owner/repo: GITHUB_REPOSITORY in Actions, else the git remote 'origin' (github.com only)."""
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        try:
+            import subprocess
+            url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=ROOT, capture_output=True,
+                                 text=True, timeout=10).stdout.strip()
+        except Exception:
+            url = ""
+        m = re.search(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$", url)
+        repo = m.group(1) if m else None
+    return repo if repo and re.fullmatch(r"[\w.-]+/[\w.-]+", repo) else None
+
+
+def refresh_target(key: str) -> dict | None:
+    """The project's daily refresh workflow on GitHub, for the page's Refresh button; None when
+    the workflow file or the repository is unknown (the button is then hidden)."""
+    wf = "refresh-%s.yml" % key
+    if not os.path.exists(os.path.join(ROOT, ".github", "workflows", wf)):
+        return None
+    repo = github_repo()
+    return {"repo": repo, "workflow": wf} if repo else None
+
+
 def fmt_when(dt: datetime) -> str:
     return "%d %s %d, %02d:%02d IST" % (dt.day, dt.strftime("%b"), dt.year, dt.hour, dt.minute)
 
@@ -299,6 +324,7 @@ def build_project(cfg: dict, assets: Assets, mode: str, today: date, now: dateti
         "dataHash": M.short(hashes.get("data")),
         "staleAfterHours": data.get("staleAfterHours", 20), "locale": data.get("locale", "en-IN"),
         "tokenRejected": token_rejected,
+        "refresh": refresh_target(key),
     }
     payload = {"meta": meta, "project": public_project(cfg), "data": strip_private(data), "metrics": metrics}
 

@@ -49,6 +49,15 @@ section:first-of-type { margin-top: 0; }
 .title { font-size: 17px; letter-spacing: -.01em; }
 @media (max-width: 760px) { .title { font-size: 17.5px; } }
 .asof { font-size: 13px; color: var(--muted); }
+.run-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.run-status a { color: inherit; }
+.run-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.run-dot.running { background: var(--brand); animation: run-pulse 1.2s ease-in-out infinite; }
+.run-dot.good { background: var(--good); }
+.run-dot.bad { background: var(--bad); }
+@keyframes run-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .run-dot.running { animation: none; } }
+@media (max-width: 960px) { .run-status { display: none !important; } }
 .spacer { flex: 1; }
 .btn { appearance: none; border: 1px solid var(--line-soft); background: var(--card); color: var(--ink); border-radius: 10px; min-height: 36px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: border-color .12s linear, color .12s linear, background .12s linear, transform .1s var(--ease); }
 .btn:hover { border-color: var(--brand); color: var(--brand-ink); }
@@ -555,6 +564,12 @@ footer code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
       </span>
     </a>
     <span class="spacer"></span>
+    <span class="asof run-status" id="lastRun" role="status" hidden></span>
+    <button class="btn" id="reloadBtn" type="button" hidden>Reload</button>
+    <button class="btn" id="refreshBtn" type="button" hidden title="Opens the refresh workflow on GitHub: press Run workflow (needs write access to the repository). The page updates a few minutes after the run finishes.">
+      <svg class="theme-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+      Refresh
+    </button>
     <button class="btn" id="themeBtn" type="button" aria-pressed="false" title="Switch theme">
       <svg class="theme-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       Theme
