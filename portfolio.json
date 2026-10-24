@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "state": "fresh",
+    "generatedAt": "2026-10-24T19:34:13+05:30",
+    "today": "2026-10-24",
+    "buildId": "a900bf2d447b",
+    "logicHash": "49ec1cba3f7c",
+    "staleAfterHours": 20,
+    "locale": "en-IN",
+    "origin": "live"
+  },
+  "projects": [
+    {
+      "key": "CIVIL",
+      "title": "TSUK - CIVIL Works",
+      "client": "Tata Steel UK",
+      "order": 1000,
+      "state": "fresh",
+      "origin": "live",
+      "generatedAt": "2026-10-24T19:33:52+05:30",
+      "dataAsOf": "2026-10-24T19:33:52+05:30",
+      "tokenRejected": false,
+      "href": "./CIVIL/",
+      "health": {
+        "label": "Amber",
+        "tone": "warn",
+        "reason": "Total score 50.0 of 100"
+      },
+      "score": 50.0,
+      "scoreStatus": "Amber",
+      "ppcRunning": 74.0,
+      "ppcBasis": "committed",
+      "ppcPlanned": 82.4,
+      "activityDelayedPct": 10.2,
+      "tasks": 953,
+      "delayed": 138,
+      "lastCommittedWeek": "2026-42",
+      "tradesBelowTarget": 2,
+      "projectStatus": "Started",
+      "lastWeekPpc": 88.2,
+      "lastWeekTone": "good",
+      "lastWeek": "2026-42",
+      "ppcRunningTone": "warn",
+      "trades": 14,
+      "openConstraints": 6
+    }
+  ]
+}
